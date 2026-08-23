@@ -31,13 +31,12 @@
     --color-body-state: #00796b;
 }
 
-html { height: auto; font-size: var(--base-font-size); }
+html { height: auto; min-height: 0; font-size: var(--base-font-size); }
 body {
     font-family: var(--font-main);
     background: transparent;
     margin: 0;
-    padding: 10px 24px;
-    display: flex; justify-content: center; align-items: flex-start;
+    padding: 0 24px;
     box-sizing: border-box; font-size: 1rem;
     height: auto; min-height: 0;
 }
@@ -368,7 +367,7 @@ body {
 
 @media (max-width: 500px) {
     :root { --section-gap: 1rem; --base-font-size: 14px; }
-    body { padding: 4px 18px; }
+    body { padding: 0 18px; }
     .status-card { margin: 5px auto; border-radius: 8px 16px 16px 8px; }
     .status-card::before { width: 10px; border-radius: 6px 0 0 6px; }
     .card-content { padding: 1rem; margin: 4px 4px 4px 12px; border-radius: 8px;}
