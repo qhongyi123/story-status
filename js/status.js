@@ -129,7 +129,7 @@ var ESTATE_TYPES = [
     { key: '居所',             label: '居所' },
     { key: '商业',             label: '商铺' },
     { key: '农事',             label: '农事' },
-    { key: '手工业及简单工艺', label: '手工业' },
+    { key: '手工业', label: '手工业' },
     { key: '其他',             label: '其他' }
 ];
 
@@ -738,7 +738,7 @@ function buildWarehouseBlock(warehouse, onlyRegion) {
 // 家产信息卡：字段 + 产出块 + 收款/收获/转化/出售按钮（软门控：商业/农事/手工业需就职人员）
 function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staffCount) {
     var region = getRegion(estate.location);
-    var gatedType = estate.type === '商业' || estate.type === '农事' || estate.type === '手工业及简单工艺';
+    var gatedType = estate.type === '商业' || estate.type === '农事' || estate.type === '手工业';
     var hasStaff = (staffCount || 0) >= 1;
     var blocked = gatedType && !hasStaff;
     var card = buildEntityCard(name, [
@@ -1344,7 +1344,7 @@ function shipSize(ship) {
 
 // 地块颜色类（灰=待分配、黄=已就职、蓝=无需就职、红=荒废/重损）
 function estateTileClass(estate, staffed) {
-    var needsStaff = estate.type === '商业' || estate.type === '农事' || estate.type === '手工业及简单工艺';
+    var needsStaff = estate.type === '商业' || estate.type === '农事' || estate.type === '手工业';
     if (!needsStaff) return 'tile-neutral';
     if (estate.status === '荒废' || estate.status === '歇业') return 'tile-derelict';
     return staffed ? 'tile-staffed' : 'tile-vacant';
@@ -2209,8 +2209,8 @@ document.addEventListener('DOMContentLoaded', function() {
             settings: {
                 toggle: document.getElementById('settings-toggle'),
                 panel: document.getElementById('settings-panel'),
-                sliders: { width: document.getElementById('width-slider'), spacing: document.getElementById('spacing-slider'), fontSize: document.getElementById('font-size-slider'), avatarSize: document.getElementById('avatar-size-slider') },
-                values: { width: document.getElementById('width-value'), spacing: document.getElementById('spacing-value'), fontSize: document.getElementById('font-size-value'), avatarSize: document.getElementById('avatar-size-value') },
+                sliders: { spacing: document.getElementById('spacing-slider'), fontSize: document.getElementById('font-size-slider'), avatarSize: document.getElementById('avatar-size-slider') },
+                values: { spacing: document.getElementById('spacing-value'), fontSize: document.getElementById('font-size-value'), avatarSize: document.getElementById('avatar-size-value') },
                 fontSelector: document.getElementById('font-selector'),
                 buttons: { reset: document.getElementById('reset-settings-btn') }
             },
@@ -2270,7 +2270,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         settings: {
-            DEFAULTS: { width: 700, spacing: 1.5, fontSize: 16, avatarSize: 60, fontFamily: "'ZCOOL XiaoWei', sans-serif" },
+            DEFAULTS: { spacing: 1.5, fontSize: 16, avatarSize: 60, fontFamily: "'ZCOOL XiaoWei', sans-serif" },
             getStorageKey: function() { return 'uiSettings_' + App.state.uniqueId; },
             load: function() {
                 var saved = {};
@@ -2281,7 +2281,6 @@ document.addEventListener('DOMContentLoaded', function() {
             apply: function(s) {
                 var e = App.elements;
                 requestAnimationFrame(function() {
-                    e.root.style.setProperty('--card-max-width', s.width + 'px');
                     e.root.style.setProperty('--section-gap', s.spacing + 'rem');
                     e.root.style.setProperty('--base-font-size', s.fontSize + 'px');
                     e.root.style.setProperty('--avatar-size', s.avatarSize + 'px');
