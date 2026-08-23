@@ -31,16 +31,15 @@
     --color-body-state: #00796b;
 }
 
-html { font-size: var(--base-font-size); height: auto !important; min-height: auto !important; }
+html { height: auto; font-size: var(--base-font-size); }
 body {
     font-family: var(--font-main);
     background: transparent;
     margin: 0;
-    padding: 14px 32px;
+    padding: 10px 24px;
     display: flex; justify-content: center; align-items: flex-start;
     box-sizing: border-box; font-size: 1rem;
-    transform: translateZ(0);
-    height: auto !important; min-height: auto !important;
+    height: auto; min-height: 0;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -73,7 +72,7 @@ body {
 }
 
 .collapse-badge {
-    position: absolute; top: -14px; right: 26px;
+    position: absolute; top: 6px; right: 26px;
     background: linear-gradient(135deg, #150824 0%, #2c1b4d 100%);
     border: 1px solid var(--color-primary); border-radius: 16px;
     color: #d4af37; font-size: 0.75rem; padding: 2px 12px;
@@ -138,11 +137,11 @@ body {
 }
 
 .left-bookmark {
-    left: -22px;
-    border-radius: 8px 0 0 8px;
+    left: 0;
+    border-radius: 0 8px 8px 0;
     background: linear-gradient(135deg, var(--color-primary-dark) 0%, #684a00 100%);
     border: 2px solid var(--color-primary);
-    border-right: none;
+    border-left: none;
     color: #fff;
 }
 .left-bookmark:hover {
@@ -150,11 +149,11 @@ body {
 }
 
 .right-bookmark {
-    right: -22px;
-    border-radius: 0 8px 8px 0;
+    right: 0;
+    border-radius: 8px 0 0 8px;
     background: linear-gradient(135deg, #150824 0%, #2c1b4d 100%);
     border: 2px solid var(--color-primary);
-    border-left: none;
+    border-right: none;
     color: var(--color-primary);
 }
 .right-bookmark:hover {
@@ -203,7 +202,7 @@ body {
     border: 1px solid rgba(212, 175, 55, 0.4); border-radius: 8px;
     box-shadow: 0 2px 5px rgba(139, 90, 43, 0.1);
     padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; transition: all 0.3s; position: relative; user-select: none;
+    text-align: center; transition: all 0.3s; position: relative; min-height: 75px; user-select: none;
     overflow: hidden; cursor: pointer;
 }
 .inventory-item::before {
@@ -287,7 +286,7 @@ body {
 .stage-text[contenteditable="true"] {
     border: 1px dashed rgba(212, 175, 55, 0.4);
     border-radius: 4px; padding: 6px; outline: none;
-    background: rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.6); min-height: 20px;
 }
 .stage-text[contenteditable="true"]:hover {
     border-color: var(--color-primary-dark);
@@ -369,7 +368,7 @@ body {
 
 @media (max-width: 500px) {
     :root { --section-gap: 1rem; --base-font-size: 14px; }
-    body { padding: 8px 24px; }
+    body { padding: 4px 18px; }
     .status-card { margin: 5px auto; border-radius: 8px 16px 16px 8px; }
     .status-card::before { width: 10px; border-radius: 6px 0 0 6px; }
     .card-content { padding: 1rem; margin: 4px 4px 4px 12px; border-radius: 8px;}
@@ -668,7 +667,7 @@ body {
     flex-direction: column;
     align-items: stretch;
     min-width: 220px;
-    max-width: 360px;
+    max-width: min(360px, calc(100vw - 48px));
     border-radius: 6px;
     background: linear-gradient(180deg, rgba(44,27,77,0.97), rgba(21,8,36,0.97));
     border: 1px solid var(--color-primary-dark);
@@ -1034,7 +1033,7 @@ body {
     position: fixed;
     z-index: 210;
     width: 320px;
-    max-height: 344px;
+    max-height: 43vh;
     overflow-y: auto;
     background: linear-gradient(180deg, rgba(44,27,77,0.98), rgba(21,8,36,0.98));
     border: 1px solid var(--color-primary-dark);
