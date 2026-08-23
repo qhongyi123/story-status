@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<base href="https://qhongyi123.github.io/story-status/">
+<title>角色状态面板 - Bookmark Pagination</title>
+<link rel="stylesheet" href="css/status.css">
+</head>
+<body>
+    <div id="status-card-wrapper" class="status-card">
+
+        <div id="collapse-panel-btn" class="collapse-badge" title="收起或展开整个状态面板">收起面板</div>
+
+        <div class="card-content" id="ui-structure">
+
+            <!-- 世界信息条（持久悬浮于右上角，所有界面可见，弹出层不挤压下方内容） -->
+            <div id="world-info" class="wib">
+                <div class="wib-top" id="wib-top" title="点击展开 / 收起"></div>
+                <div class="wib-expand" id="wib-expand"></div>
+            </div>
+
+            <!-- 第 1 页：个人信息（头部 + 心理 + 周围环境 + 物品栏） -->
+            <div class="page active" id="page-1">
+                <div class="header" id="user-header">
+                    <div id="avatar" class="avatar user_avatar"><span id="avatar-placeholder" class="avatar-placeholder">点击更换</span></div>
+                    <div class="identity">
+                        <div id="char-name" class="name">{{user}}</div>
+                        <div class="tags-container" id="identity-tags-container">
+                             <div id="char-title" class="title">...</div>
+                        </div>
+                    </div>
+                    <div id="header-stage-btn-area" style="display:none; margin-left: auto; flex-shrink: 0;"></div>
+                </div>
+                <div class="section">
+                    <div class="section-title">&#x1F9E0; 心理状态</div>
+                    <div id="psyche-bubble" class="psyche-bubble">没有特殊的情绪...</div>
+                </div>
+                <div class="section">
+                    <div class="section-title">&#x1F4E1; 周围环境</div>
+                    <div id="surroundings-list" class="surroundings"></div>
+                </div>
+                <div class="section" style="margin-bottom:0;">
+                    <div class="section-title">&#x1F392; 物品栏</div>
+                    <div id="inventory-wrapper" class="inventory-wrapper">
+                        <div id="inventory-grid" class="inventory-grid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 第 2 页：剧情（剧情模式）+ 世界观区块（开拓：家产） -->
+            <div class="page" id="page-2">
+                <div class="stage-collapse-toggle" id="stage-collapse-toggle-area"></div>
+                <div id="task-panel" class="section"></div>
+                <div class="mode-sections" id="mode-sections-2"></div>
+            </div>
+
+            <!-- 第 3 页：世界观区块（开拓：船只） -->
+            <div class="page" id="page-3">
+                <div class="mode-sections" id="mode-sections-3"></div>
+            </div>
+
+            <!-- 第 4 页：世界观区块（开拓：关系） -->
+            <div class="page" id="page-4">
+                <div class="mode-sections" id="mode-sections-4"></div>
+            </div>
+
+            <!-- 第 5 页：世界观区块（开拓：声望） -->
+            <div class="page" id="page-5">
+                <div class="mode-sections" id="mode-sections-5"></div>
+            </div>
+
+            <!-- 第 6 页：世界观区块（开拓：地区） -->
+            <div class="page" id="page-6">
+                <div class="mode-sections" id="mode-sections-6"></div>
+            </div>
+
+        </div>
+
+        <div id="settings-toggle" class="bookmark left-bookmark" title="打开设置面板">面板配置</div>
+        <div id="page-turn-bookmark" class="bookmark right-bookmark" title="翻页浏览">下一页</div>
+    </div>
+
+    <div id="settings-panel" class="modal-overlay">
+        <div class="modal-content">
+            <div class="setting-item"><label>面板宽度: <span class="value-display" id="width-value"></span></label><input type="range" id="width-slider" min="300" max="1000"></div>
+            <div class="setting-item"><label>元素间距: <span class="value-display" id="spacing-value"></span></label><input type="range" id="spacing-slider" min="0.5" max="6" step="0.1"></div>
+            <div class="setting-item"><label>文字大小: <span class="value-display" id="font-size-value"></span></label><input type="range" id="font-size-slider" min="12" max="30"></div>
+            <div class="setting-item">
+                <label>选择字体:</label>
+                <select id="font-selector">
+                    <option value="'ZCOOL XiaoWei', sans-serif">秀逸字体 (默认)</option>
+                    <option value="'Noto Serif SC', serif">衬线体</option>
+                    <option value="'Poppins', sans-serif">无衬线体</option>
+                </select>
+            </div>
+            <hr style="border:none; border-top:1px dashed var(--color-border); margin: 1.5rem 0;">
+            <div class="setting-item"><label>头像尺寸: <span class="value-display" id="avatar-size-value"></span></label><input type="range" id="avatar-size-slider" min="40" max="500"></div>
+            <div class="settings-actions">
+                <button id="reset-settings-btn" class="settings-btn">恢复默认设置</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-confirm-panel" class="modal-overlay">
+        <div class="helper-card-v2">
+            <div class="helper-header">
+                <span class="helper-title">删除确认</span>
+            </div>
+            <div id="delete-msg-content" class="helper-content"></div>
+            <div class="helper-actions">
+                <button id="confirm-delete-btn" class="helper-btn confirm">&#x2756; 确认删除 &#x2756;</button>
+                <button id="cancel-delete-btn" class="helper-btn cancel">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="item-detail-panel" class="modal-overlay">
+        <div class="helper-card-v2" style="max-width: 520px; padding: 20px;">
+            <div class="helper-header" style="margin-bottom: 10px; padding-bottom: 5px;">
+                <span class="helper-title" style="font-size: 1.15rem;">物品详情</span>
+            </div>
+            <div class="helper-content" style="text-align: left; padding: 0 10px; margin-bottom: 15px;">
+                <p style="margin: 4px 0;"><strong style="color: var(--color-primary-dark);">名称:</strong> <span id="detail-item-name" style="font-weight: normal; font-size: 1.1em; color: var(--color-text-dark);"></span></p>
+                <p style="margin: 8px 0 4px 0; border-top: 1px dashed rgba(212,175,55,0.4); padding-top: 8px;">
+                    <strong style="color: var(--color-primary-dark);">描述:</strong>
+                    <span id="detail-item-description" style="font-weight: normal; font-size: 0.95em; color: var(--color-text-light); display: block; margin-top: 6px; white-space: pre-wrap; word-break: break-all; max-height: 50vh; overflow-y: auto;"></span>
+                </p>
+            </div>
+            <div class="helper-actions" style="gap: 0.6rem;">
+                <button id="detail-delete-btn" class="helper-btn" style="background: var(--color-delete); border-color: #500014; color: white; padding: 6px 18px; font-size: 0.85rem;">删除物品</button>
+                <button id="detail-close-btn" class="helper-btn cancel" style="padding: 6px 18px; font-size: 0.85rem;">退出</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 本地预览演示数据（上线/上传用户端前删除下面这一行） -->
+    <script src="demo/demo-data.js"></script>
+    <script src="js/status.js"></script>
+</body>
+</html>
