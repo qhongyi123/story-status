@@ -2209,8 +2209,8 @@ document.addEventListener('DOMContentLoaded', function() {
             settings: {
                 toggle: document.getElementById('settings-toggle'),
                 panel: document.getElementById('settings-panel'),
-                sliders: { spacing: document.getElementById('spacing-slider'), fontSize: document.getElementById('font-size-slider'), avatarSize: document.getElementById('avatar-size-slider') },
-                values: { spacing: document.getElementById('spacing-value'), fontSize: document.getElementById('font-size-value'), avatarSize: document.getElementById('avatar-size-value') },
+                sliders: { width: document.getElementById('width-slider'), spacing: document.getElementById('spacing-slider'), fontSize: document.getElementById('font-size-slider'), avatarSize: document.getElementById('avatar-size-slider') },
+                values: { width: document.getElementById('width-value'), spacing: document.getElementById('spacing-value'), fontSize: document.getElementById('font-size-value'), avatarSize: document.getElementById('avatar-size-value') },
                 fontSelector: document.getElementById('font-selector'),
                 buttons: { reset: document.getElementById('reset-settings-btn') }
             },
@@ -2270,7 +2270,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         settings: {
-            DEFAULTS: { spacing: 1.5, fontSize: 16, avatarSize: 60, fontFamily: "'ZCOOL XiaoWei', sans-serif" },
+            DEFAULTS: { width: 700, spacing: 1.5, fontSize: 16, avatarSize: 60, fontFamily: "'ZCOOL XiaoWei', sans-serif" },
             getStorageKey: function() { return 'uiSettings_' + App.state.uniqueId; },
             load: function() {
                 var saved = {};
@@ -2281,6 +2281,7 @@ document.addEventListener('DOMContentLoaded', function() {
             apply: function(s) {
                 var e = App.elements;
                 requestAnimationFrame(function() {
+                    e.root.style.setProperty('--card-max-width', s.width + 'px');
                     e.root.style.setProperty('--section-gap', s.spacing + 'rem');
                     e.root.style.setProperty('--base-font-size', s.fontSize + 'px');
                     e.root.style.setProperty('--avatar-size', s.avatarSize + 'px');
