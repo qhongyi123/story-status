@@ -31,15 +31,15 @@
     --color-body-state: #00796b;
 }
 
-html { font-size: var(--base-font-size); }
+html { font-size: var(--base-font-size); height: auto; min-height: 0; }
 body {
     font-family: var(--font-main);
     background: transparent;
     margin: 0;
-    padding: 16px 32px 8px;
-    display: flex; justify-content: center; align-items: flex-start;
-    box-sizing: border-box; font-size: 1rem;
-    height: auto; min-height: auto;
+    padding: 0;
+    box-sizing: border-box;
+    font-size: 1rem;
+    height: auto; min-height: 0;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -53,8 +53,9 @@ body {
     border-radius: 12px 24px 24px 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     position: relative;
-    width: 100%; max-width: var(--card-max-width);
-    margin: 10px auto; box-sizing: border-box; transition: max-width 0.3s ease;
+    width: calc(100% - 64px);
+    max-width: var(--card-max-width);
+    margin: 18px auto 10px; box-sizing: border-box; transition: max-width 0.3s ease;
 }
 
 .status-card::before {
@@ -370,8 +371,7 @@ body {
 
 @media (max-width: 500px) {
     :root { --section-gap: 1rem; --base-font-size: 14px; }
-    body { padding: 16px 26px 4px; }
-    .status-card { margin: 5px auto; border-radius: 8px 16px 16px 8px; }
+    .status-card { margin: 16px auto 6px; border-radius: 8px 16px 16px 8px; }
     .status-card::before { width: 10px; border-radius: 6px 0 0 6px; }
     .card-content { padding: 1rem; margin: 4px 4px 4px 12px; border-radius: 8px;}
     .header { flex-direction: column; text-align: center; }
