@@ -2,7 +2,6 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<base href="https://qhongyi123.github.io/story-status/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>角色状态面板 - Bookmark Pagination</title>
 <link rel="stylesheet" href="css/status.css">
@@ -75,10 +74,34 @@
                 <div class="mode-sections" id="mode-sections-6"></div>
             </div>
 
+            <!-- 控制面板：中间虚线分隔，左右两竖排可勾选选项 -->
+            <div class="page" id="page-7">
+                <div class="section">
+                    <div class="section-title">&#x1F39B;&#xFE0F; 控制面板</div>
+                </div>
+                <div class="ctrl-grid">
+                    <div class="ctrl-col">
+                        <label class="ctrl-option">
+                            <input type="checkbox" id="control-on-last-page">
+                            <span>将【控制面板】置于末页</span>
+                        </label>
+                    </div>
+                    <div class="ctrl-divider" aria-hidden="true"></div>
+                    <div class="ctrl-col">
+                        <div class="ctrl-empty">待添加…</div>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
-        <div id="settings-toggle" class="bookmark left-bookmark" title="打开设置面板">面板配置</div>
-        <div id="page-turn-bookmark" class="bookmark right-bookmark" title="翻页浏览">下一页</div>
+        <div class="bookmark-stack bookmark-stack-left">
+            <div id="settings-toggle" class="bookmark left-bookmark" title="打开设置面板">面板配置</div>
+        </div>
+        <div class="bookmark-stack bookmark-stack-right">
+            <div id="page-prev-bookmark" class="bookmark right-bookmark" title="上一页">上一页</div>
+            <div id="page-turn-bookmark" class="bookmark right-bookmark" title="翻页浏览">下一页</div>
+        </div>
     </div>
 
     <div id="settings-panel" class="modal-overlay">

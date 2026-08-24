@@ -2129,7 +2129,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 isPanelCollapsed: false,
                 isStageDetailsExpanded: false,
                 isTaskPanelCollapsed: false,
-                worldInfoTop: 'datetime'
+                worldInfoTop: 'datetime',
+                controlPanelOnLastPage: false
             },
             getStorageKey: function() { return 'state_uiconfig_' + App.state.uniqueId; },
             load: function() {
@@ -2222,7 +2223,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnDelete: document.getElementById('detail-delete-btn'),
                 btnClose: document.getElementById('detail-close-btn')
             },
-            pageTurnBtn: document.getElementById('page-turn-bookmark')
+            pageTurnBtn: document.getElementById('page-turn-bookmark'),
+            pagePrevBtn: document.getElementById('page-prev-bookmark'),
+            controlPanelPage: document.getElementById('page-7')
         },
 
         throttle: function(func, limit) {
@@ -2628,6 +2631,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 App.actions.showPage(actives[(idx + 1) % actives.length]);
             },
 
+            turnPageBack: function() {
+                var actives = App.state.activePages || [];
+                if (actives.length <= 1) return;
+                var current = null;
+                actives.forEach(function(p) { if (p.classList.contains('active')) current = p; });
+                var idx = actives.indexOf(current);
+                if (idx === -1) idx = 0;
+                App.actions.showPage(actives[(idx - 1 + actives.length) % actives.length]);
+            },
+
             showPage: function(pageEl) {
                 if (!pageEl) return;
                 App.elements.containers.pages.forEach(function(p) { p.classList.remove('active'); });
@@ -2647,16 +2660,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 var d = App.state.parsedData;
                 var view = d ? getStatusView(d.mode, d.worldview) : { showStage: false, pages: [] };
                 var wp = view.pages || [];
+                var controlPage = App.elements.controlPanelPage;
                 var currentActive = null;
                 pages.forEach(function(p) { if (p.classList.contains('active')) currentActive = p; });
 
                 var actives = [pages[0]]; // 第 1 页（个人信息）始终激活
                 // 第 2 页：剧情（剧情模式）或世界观第一页有区块
                 if (view.showStage || (wp[0] && wp[0].length)) actives.push(pages[1]);
+                // 控制面板默认置于第二页
+                if (controlPage && !App.uiStateConfig.data.controlPanelOnLastPage) actives.push(controlPage);
                 for (var i = 2; i < pages.length; i++) {
+                    if (pages[i] === controlPage) continue; // 控制面板页单独处理
                     var wpi = i - 1;
                     if (wp[wpi] && wp[wpi].length) actives.push(pages[i]);
                 }
+                // 勾选「置于末页」时，控制面板移到末页
+                if (controlPage && App.uiStateConfig.data.controlPanelOnLastPage) actives.push(controlPage);
                 App.state.activePages = actives;
 
                 pages.forEach(function(p) { p.classList.remove('active'); });
@@ -2917,6 +2936,18 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             pageTurnBtn.addEventListener('click', App.actions.turnPage);
+            App.elements.pagePrevBtn.addEventListener('click', App.actions.turnPageBack);
+
+            // 控制面板「置于末页」勾选项：默认第二页，勾选后移到末页
+            var controlOnLastPageCb = document.getElementById('control-on-last-page');
+            if (controlOnLastPageCb) {
+                controlOnLastPageCb.checked = !!App.uiStateConfig.data.controlPanelOnLastPage;
+                controlOnLastPageCb.addEventListener('change', function() {
+                    App.uiStateConfig.data.controlPanelOnLastPage = controlOnLastPageCb.checked;
+                    App.uiStateConfig.save();
+                    App.actions.refreshPages();
+                });
+            }
 
             // 世界信息条：点击置顶项展开/收起，选择器里改置顶项
             if (App.elements.containers.worldInfoTop) {
