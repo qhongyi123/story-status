@@ -37,7 +37,7 @@ body {
     font-family: var(--font-main);
     background: transparent;
     margin: 0;
-    padding: 10px 24px;
+    padding: 10px 24px 0;
     display: flex; justify-content: center; align-items: flex-start;
     box-sizing: border-box; font-size: 1rem;
     transform: translateZ(0);
@@ -56,7 +56,7 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     position: relative;
     width: 100%; max-width: var(--card-max-width);
-    margin: 10px auto; box-sizing: border-box; transition: max-width 0.3s ease;
+    margin: 10px auto 0; box-sizing: border-box; transition: max-width 0.3s ease;
 }
 
 .status-card::before {
@@ -377,8 +377,8 @@ body {
 
 @media (max-width: 500px) {
     :root { --section-gap: 1rem; --base-font-size: 14px; }
-    body { padding: 4px 18px; }
-    .status-card { margin: 5px auto; border-radius: 8px 16px 16px 8px; }
+    body { padding: 4px 18px 0; }
+    .status-card { margin: 5px auto 0; border-radius: 8px 16px 16px 8px; }
     .status-card::before { width: 10px; border-radius: 6px 0 0 6px; }
     .card-content { padding: 1rem; margin: 4px 4px 4px 12px; border-radius: 8px;}
     .header { flex-direction: column; text-align: center; }

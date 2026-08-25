@@ -2708,8 +2708,8 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             confirmDelete: async function() {
                 var itemName = App.state.pendingDeleteItem; if (!itemName) return;
-                var payload = { user: { Inventory: {} } };
-                payload.user.Inventory[itemName] = {};
+                var payload = { user: { inventory: {} } };
+                payload.user.inventory[itemName] = {};
                 try {
                     if (window.eventEmit) {
                         await window.eventEmit('era:deleteByObject', payload);
@@ -2848,8 +2848,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     bodyState: clean(u.body_state || ''),
                     wealth: clean(u.wealth || ''),
                     surroundings: clean(u.surroundings || ''),
-                    psyche: clean(u.Psychological_description || ''),
-                    inventory: u.Inventory || {}
+                    psyche: clean(u.psychological_description || u.Psychological_description || ''),
+                    inventory: u.inventory || u.Inventory || {}
                 };
 
                 // 开拓新大陆（colony）世界观用到的变量（其余世界观从 p.raw 自行读取）
