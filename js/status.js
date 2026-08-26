@@ -73,20 +73,14 @@ function fmtList(v) {
 /* ---------------------------------------------------------------------
  * 世界信息条：货币换算 + 时间格式化
  * --------------------------------------------------------------------- */
-var COIN_RATIO = 100; // 1 金币 = 100 银币（按需调整）
+var COIN_RATIO = 15; // 1 金币 = 15 银币
 
-function parseCoins(wealthStr) {
+function parseCoins(goldStr, wealthStr) {
     var r = { gold: 0, silver: 0 };
-    if (!wealthStr) return r;
-    var s = String(wealthStr);
-    var gm = s.match(/(\d+(?:\.\d+)?)\s*(?:金|金币)/);
-    var sm = s.match(/(\d+(?:\.\d+)?)\s*(?:银|银币)/);
+    var gm = String(goldStr || '').match(/(\d+(?:\.\d+)?)/);
+    var sm = String(wealthStr || '').match(/(\d+(?:\.\d+)?)/);
     if (gm) r.gold = parseFloat(gm[1]);
     if (sm) r.silver = parseFloat(sm[1]);
-    if (!gm && !sm) {
-        var nm = s.match(/(\d+(?:\.\d+)?)/);
-        if (nm) r.silver = parseFloat(nm[1]);
-    }
     return r;
 }
 
@@ -98,8 +92,8 @@ function normalizeCoins(c) {
     return c;
 }
 
-function formatWealth(wealthStr) {
-    var c = normalizeCoins(parseCoins(wealthStr));
+function formatWealth(goldStr, wealthStr) {
+    var c = parseCoins(goldStr, wealthStr);
     return '金币' + c.gold + '枚，银币' + c.silver + '枚';
 }
 
@@ -728,7 +722,23 @@ function buildWarehouseBlock(warehouse, onlyRegion) {
     regions.forEach(function(region) {
         var title = document.createElement('div');
         title.className = 'entity-group-title';
-        title.textContent = '仓库 · ' + region;
+        title.style.display = 'flex';
+        title.style.justifyContent = 'space-between';
+        title.style.alignItems = 'center';
+        var titleSpan = document.createElement('span');
+        titleSpan.textContent = '仓库 · ' + region;
+        title.appendChild(titleSpan);
+        var checkBtn = document.createElement('button');
+        checkBtn.type = 'button';
+        checkBtn.className = 'collect-btn';
+        checkBtn.textContent = '清点仓库（更新变量）';
+        checkBtn.addEventListener('click', function() {
+            if (typeof window.eventEmit !== 'function') { alert('无法接入 ERA 指令通道。'); return; }
+            window.eventEmit('era:updateByObject', { warehouse: warehouse });
+            checkBtn.textContent = '已清点';
+            checkBtn.disabled = true;
+        });
+        title.appendChild(checkBtn);
         block.appendChild(title);
         block.appendChild(buildWarehouseTable(warehouse[region]));
     });
@@ -736,7 +746,7 @@ function buildWarehouseBlock(warehouse, onlyRegion) {
 }
 
 // 家产信息卡：字段 + 产出块 + 收款/收获/转化/出售按钮（软门控：商业/农事/手工业需就职人员）
-function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staffCount) {
+function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staffCount, assignmentList) {
     var region = getRegion(estate.location);
     var gatedType = estate.type === '商业' || estate.type === '农事' || estate.type === '手工业';
     var hasStaff = (staffCount || 0) >= 1;
@@ -782,6 +792,12 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
             staffHint.className = 'staff-hint';
             staffHint.textContent = '无人经营，无法操作';
             staffWrap.appendChild(staffHint);
+        } else if (assignmentList && assignmentList.length) {
+            var staffNames = document.createElement('span');
+            staffNames.className = 'staff-names';
+            staffNames.style.cssText = 'opacity:0.85;margin-left:8px;font-size:0.85em;';
+            staffNames.textContent = assignmentList.map(function(a) { return a.name; }).join('、');
+            staffWrap.appendChild(staffNames);
         }
         card.appendChild(staffWrap);
     }
@@ -1455,6 +1471,7 @@ function emitAssign(p, data, selectValue, rerender) {
     if (!data.employment) data.employment = {};
     data.employment[p.name] = assignment;
     if (rerender) rerender();
+    if (typeof App !== 'undefined' && App.ui && App.ui.renderModeSections) App.ui.renderModeSections();
 }
 
 // 解职（删除 employment 里的该人）
@@ -1465,6 +1482,7 @@ function emitUnassign(p, data, rerender) {
     window.eventEmit('era:deleteByObject', { employment: empPayload });
     if (data.employment) delete data.employment[p.name];
     if (rerender) rerender();
+    if (typeof App !== 'undefined' && App.ui && App.ui.renderModeSections) App.ui.renderModeSections();
 }
 
 // 发薪：固定整月扣 monthly_total，写 last_paid
@@ -1842,6 +1860,7 @@ var SECTION_RENDERERS = {
         var currentWealth = (data.user && data.user.wealth) || '';
         var warehouse = data.warehouse || {};
         var staffIndex = buildStaffIndex(data.employment || {});
+        var assignmentIndex = buildAssignmentIndex(data.employment || {});
         var section = document.createElement('div');
         section.className = 'section';
         container.appendChild(section);
@@ -1919,7 +1938,7 @@ var SECTION_RENDERERS = {
                     return;
                 }
                 list.forEach(function(item) {
-                    content.appendChild(buildEstateCard(item.name, item.data, todayISO, currentWealth, warehouse, staffIndex[item.name] || 0));
+                    content.appendChild(buildEstateCard(item.name, item.data, todayISO, currentWealth, warehouse, staffIndex[item.name] || 0, assignmentIndex[item.name] || []));
                 });
             }
             renderContent();
@@ -2111,7 +2130,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var App = {
         state: {
             parsedData: { user: {}, stageData: null, currentStageData: null },
-            prevRenderData: { title: null, psyche: null, surroundings: null, inventory: null, stageData: null, currentStageData: null, bodyState: null, world: null, wealth: null, mode: null, isStageExpanded: null, isTaskPanelCollapsed: null, modeExtra: null, modeForSections: null, worldviewForSections: null },
+            prevRenderData: { title: null, psyche: null, surroundings: null, inventory: null, stageData: null, currentStageData: null, bodyState: null, world: null, wealth: null, gold: null, mode: null, isStageExpanded: null, isTaskPanelCollapsed: null, modeExtra: null, modeForSections: null, worldviewForSections: null },
             settings: {},
             uniqueId: '{{user}}',
             db: null,
@@ -2331,17 +2350,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else { container.innerHTML = '<span style="color:var(--color-text-light);font-style:italic;">暂无环境信息...</span>'; }
             },
 
-            renderWorldInfo: function(world, wealth) {
+            renderWorldInfo: function(world, gold, wealth) {
                 var el = App.elements.containers.worldInfo;
                 world = world || {};
-                var hasAny = !!(world.date || world.position || world.time || wealth);
+                var hasAny = !!(world.date || world.position || world.time || gold || wealth);
                 if (el) { el.style.display = hasAny ? '' : 'none'; }
                 if (!hasAny) return;
 
                 App.state.worldInfoValues = {
                     datetime: formatDatetime(world),
                     time: formatTime(world.time),
-                    wealth: formatWealth(wealth)
+                    wealth: formatWealth(gold, wealth)
                 };
                 App.ui.renderWorldInfoWidget();
             },
@@ -2582,8 +2601,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (d.user.surroundings !== prev.surroundings) { App.ui.renderSurroundings(containers.surroundings, d.user.surroundings); prev.surroundings = d.user.surroundings; }
 
                     var worldJson = JSON.stringify(d.world);
+                    var goldVal = d.user.gold || '';
                     var wealthVal = d.user.wealth || '';
-                    if (worldJson !== prev.world || wealthVal !== prev.wealth) { App.ui.renderWorldInfo(d.world, wealthVal); prev.world = worldJson; prev.wealth = wealthVal; }
+                    if (worldJson !== prev.world || wealthVal !== prev.wealth || goldVal !== prev.gold) { App.ui.renderWorldInfo(d.world, goldVal, wealthVal); prev.world = worldJson; prev.wealth = wealthVal; prev.gold = goldVal; }
 
                     var invJson = JSON.stringify(d.user.inventory);
                     if (invJson !== prev.inventory) { App.ui.renderInventory(containers.inventory, d.user.inventory); prev.inventory = invJson; }
@@ -2846,6 +2866,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     name: clean(u.name || u.identity || '{{user}}'),
                     identity: clean(u.identity || ''),
                     bodyState: clean(u.body_state || ''),
+                    gold: clean(u.gold || ''),
                     wealth: clean(u.wealth || ''),
                     surroundings: clean(u.surroundings || ''),
                     psyche: clean(u.psychological_description || u.Psychological_description || ''),
