@@ -619,40 +619,204 @@ function collectEstateHarvest(name, estate, todayISO, warehouse, region, btn, in
     if (btn) { btn.textContent = '已收 ' + Math.round(totalGain) + ' 磅'; btn.disabled = true; }
 }
 
-// 配方显示：{input:{甘蔗:10}} → {output:{糖:7}}
-function fmtRecipe(recipe) {
-    function fmt(obj) {
-        return Object.keys(obj || {}).map(function(k) { return k + ' ' + obj[k] + '磅'; }).join(' + ');
-    }
-    return fmt(recipe.input) + ' → ' + fmt(recipe.output);
+/* ============ 转化比例方针（手工业生产转化） ============ */
+var DEFAULT_POLICIES = [
+    { name: '粗放转化', ratio: '10:1', limits: [100, 500, 2000], desc: '适合大宗农产加工：甘蔗→糖、甘蔗→糖蜜' },
+    { name: '精制转化', ratio: '15:1', limits: [50, 200, 1000], desc: '适合高耗原料加工：棉花→棉布、亚麻→麻布' },
+    { name: '快速转化', ratio: '7:1', limits: [200, 1000, 5000], desc: '适合高转化率加工：糖蜜→朗姆酒、小麦→面粉' }
+];
+var CONV_POLICY_KEY = 'state_convpolicies';
+var conversionPolicies = null;
+
+function getConversionPolicies() {
+    if (conversionPolicies) return conversionPolicies;
+    try {
+        var saved = JSON.parse(localStorage.getItem(CONV_POLICY_KEY));
+        if (saved && saved.defaults) {
+            conversionPolicies = saved;
+            if (!conversionPolicies.activeLimit) conversionPolicies.activeLimit = 100;
+            return conversionPolicies;
+        }
+    } catch (e) {}
+    conversionPolicies = {
+        defaults: JSON.parse(JSON.stringify(DEFAULT_POLICIES)),
+        customs: [],
+        activeKey: 'd0',
+        activeLimit: DEFAULT_POLICIES[0].limits[1]
+    };
+    return conversionPolicies;
+}
+function saveConversionPolicies() {
+    try { localStorage.setItem(CONV_POLICY_KEY, JSON.stringify(conversionPolicies)); } catch (e) {}
+}
+function convPolicyByIdx(p, key) {
+    if (!key) key = 'd0';
+    if (key.charAt(0) === 'c') return p.customs[parseInt(key.slice(1), 10)];
+    return p.defaults[parseInt(key.slice(1), 10)];
+}
+function convActivePolicy(p) {
+    return convPolicyByIdx(p, p.activeKey) || p.defaults[0];
+}
+function convRatioNumbers(ratio) {
+    var m = String(ratio || '').match(/(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)/);
+    if (!m) return { in: 10, out: 1 };
+    return { in: parseFloat(m[1]) || 1, out: parseFloat(m[2]) || 1 };
 }
 
-// 转化：手工业按配方把原料（磅）转化为成品（磅），原料从该地区仓库扣、成品加回
-function collectConversion(name, estate, todayISO, warehouse, region, recipe, batches, btn) {
-    batches = parseInt(batches, 10);
-    if (!batches || batches <= 0) { alert('请输入有效批数。'); return; }
-    var input = recipe && recipe.input ? recipe.input : {};
-    var output = recipe && recipe.output ? recipe.output : {};
-    if (!Object.keys(input).length || !Object.keys(output).length) { alert('配方无效。'); return; }
+// 转化比例方针面板：默认方针 ×3 + 自定义方针，可改名/改比例/选每日上限，可重置
+function openPolicyModal(onDone) {
+    var p = getConversionPolicies();
+    var overlay = document.createElement('div');
+    overlay.className = 'conv-policy-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;';
+    var panel = document.createElement('div');
+    panel.className = 'conv-policy-panel';
+    panel.style.cssText = 'background:#fff;border-radius:8px;padding:16px;max-width:560px;width:92%;max-height:85vh;overflow:auto;font-size:13px;color:#333;box-sizing:border-box;';
 
+    var head = document.createElement('div');
+    head.style.cssText = 'font-weight:bold;font-size:15px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;';
+    var headTitle = document.createElement('span');
+    headTitle.textContent = '转化比例方针';
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button'; closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', function() { overlay.remove(); if (onDone) onDone(); });
+    head.appendChild(headTitle); head.appendChild(closeBtn);
+    panel.appendChild(head);
+
+    var listArea = document.createElement('div');
+    panel.appendChild(listArea);
+
+    function renderPolicyList() {
+        while (listArea.firstChild) listArea.removeChild(listArea.firstChild);
+        var sections = [
+            { label: '默认方针', items: p.defaults, baseKey: 'd' },
+            { label: '自定义方针', items: p.customs, baseKey: 'c' }
+        ];
+        sections.forEach(function(sec) {
+            if (!sec.items.length) return;
+            var secTitle = document.createElement('div');
+            secTitle.style.cssText = 'font-weight:bold;margin:10px 0 4px;color:#666;';
+            secTitle.textContent = sec.label;
+            listArea.appendChild(secTitle);
+            sec.items.forEach(function(policy, i) {
+                var key = sec.baseKey + i;
+                var row = document.createElement('div');
+                row.style.cssText = 'border:1px solid #ddd;border-radius:6px;padding:8px;margin-bottom:8px;background:' + (key === p.activeKey ? '#f5f0e0' : '#fff') + ';';
+                var radio = document.createElement('input');
+                radio.type = 'radio'; radio.name = 'conv-policy'; radio.checked = (key === p.activeKey);
+                radio.addEventListener('change', function() {
+                    p.activeKey = key;
+                    p.activeLimit = (policy.limits && policy.limits.length) ? policy.limits[0] : 100;
+                    saveConversionPolicies();
+                    renderPolicyList();
+                });
+                row.appendChild(radio);
+                var nameInput = document.createElement('input');
+                nameInput.type = 'text'; nameInput.value = policy.name;
+                nameInput.title = '方针名称';
+                nameInput.style.cssText = 'font-weight:bold;width:110px;margin:0 6px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;';
+                nameInput.addEventListener('change', function() { policy.name = nameInput.value; saveConversionPolicies(); });
+                row.appendChild(nameInput);
+                var ratioInput = document.createElement('input');
+                ratioInput.type = 'text'; ratioInput.value = policy.ratio;
+                ratioInput.title = '转化比例（原料:产品，如 10:1）';
+                ratioInput.style.cssText = 'width:60px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;';
+                ratioInput.addEventListener('change', function() { policy.ratio = ratioInput.value; saveConversionPolicies(); });
+                row.appendChild(ratioInput);
+                var limitSel = document.createElement('select');
+                limitSel.title = '每日转化上限（磅）';
+                (policy.limits || []).forEach(function(l) {
+                    var o = document.createElement('option');
+                    o.value = l; o.textContent = l + ' 磅/日';
+                    limitSel.appendChild(o);
+                });
+                limitSel.value = String(p.activeLimit);
+                limitSel.addEventListener('change', function() {
+                    p.activeLimit = parseInt(limitSel.value, 10);
+                    saveConversionPolicies();
+                });
+                row.appendChild(limitSel);
+                var descInput = document.createElement('input');
+                descInput.type = 'text'; descInput.value = policy.desc || '';
+                descInput.placeholder = '说明（适合何种手工业）';
+                descInput.style.cssText = 'width:100%;margin-top:4px;padding:2px 4px;border:1px solid #eee;border-radius:3px;';
+                descInput.addEventListener('change', function() { policy.desc = descInput.value; saveConversionPolicies(); });
+                row.appendChild(document.createElement('br'));
+                row.appendChild(descInput);
+                listArea.appendChild(row);
+            });
+        });
+        if (!p.defaults.length && !p.customs.length) {
+            var empty = document.createElement('div');
+            empty.style.cssText = 'color:#999;padding:10px 0;';
+            empty.textContent = '暂无方针';
+            listArea.appendChild(empty);
+        }
+    }
+    renderPolicyList();
+
+    var foot = document.createElement('div');
+    foot.style.cssText = 'display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;';
+    var addBtn = document.createElement('button');
+    addBtn.type = 'button'; addBtn.textContent = '+ 新增自定义方针';
+    addBtn.addEventListener('click', function() {
+        p.customs.push({ name: '自定义方针' + (p.customs.length + 1), ratio: '10:1', limits: [100, 500], desc: '' });
+        p.activeKey = 'c' + (p.customs.length - 1);
+        p.activeLimit = 100;
+        saveConversionPolicies();
+        renderPolicyList();
+    });
+    var resetBtn = document.createElement('button');
+    resetBtn.type = 'button'; resetBtn.textContent = '方针重置';
+    resetBtn.addEventListener('click', function() {
+        p.defaults = JSON.parse(JSON.stringify(DEFAULT_POLICIES));
+        p.customs = [];
+        p.activeKey = 'd0';
+        p.activeLimit = DEFAULT_POLICIES[0].limits[1];
+        saveConversionPolicies();
+        renderPolicyList();
+    });
+    var doneBtn = document.createElement('button');
+    doneBtn.type = 'button'; doneBtn.textContent = '完成';
+    doneBtn.addEventListener('click', function() { overlay.remove(); if (onDone) onDone(); });
+    foot.appendChild(addBtn); foot.appendChild(resetBtn); foot.appendChild(doneBtn);
+    panel.appendChild(foot);
+
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+}
+
+// 生产转化：把选中的原料按方针比例转化为产品，写入该地区仓库；受每日上限约束
+function collectConversionByPolicy(name, estate, todayISO, warehouse, region, material, productName, policy, limit, inputPounds, btn, resultEl) {
+    if (!todayISO) { alert('当前日期无法解析，无法转化。'); return; }
+    inputPounds = parseFloat(inputPounds);
+    if (!inputPounds || inputPounds <= 0) { alert('请输入有效的转化数量。'); return; }
+    if (!material) { alert('请先选择原料（生产方式）。'); return; }
     var regionWarehouse = (warehouse && warehouse[region]) || {};
-    var need = {};
-    Object.keys(input).forEach(function(item) { need[item] = input[item] * batches; });
-    var lack = Object.keys(need).filter(function(item) { return (regionWarehouse[item] || 0) < need[item]; });
-    if (lack.length) { alert('原料不足：' + lack.join('、')); return; }
+    var have = regionWarehouse[material] || 0;
+    if (have < inputPounds) { alert('原料不足：' + material + ' 仅剩 ' + Math.round(have) + ' 磅'); return; }
+    if (inputPounds > limit) { alert('超过单次转化上限（' + limit + ' 磅）。'); return; }
+    var todayUsed = (estate.last_converted_date === todayISO) ? (estate.converted_today || 0) : 0;
+    if (todayUsed + inputPounds > limit) { alert('超过今日转化上限（' + limit + ' 磅，今日已用 ' + Math.round(todayUsed) + ' 磅）。'); return; }
+
+    var r = convRatioNumbers(policy && policy.ratio);
+    var outPounds = inputPounds * r.out / r.in;
 
     var newWarehouse = {};
     Object.keys(regionWarehouse).forEach(function(k) { newWarehouse[k] = regionWarehouse[k]; });
-    Object.keys(need).forEach(function(item) {
-        newWarehouse[item] = (newWarehouse[item] || 0) - need[item];
-        if (newWarehouse[item] <= 0) delete newWarehouse[item];
-    });
-    Object.keys(output).forEach(function(item) {
-        newWarehouse[item] = (newWarehouse[item] || 0) + output[item] * batches;
-    });
-
+    newWarehouse[material] = (newWarehouse[material] || 0) - inputPounds;
+    if (newWarehouse[material] <= 0) delete newWarehouse[material];
+    newWarehouse[productName] = (newWarehouse[productName] || 0) + outPounds;
     if (!syncRegionWarehouse(region, regionWarehouse, newWarehouse)) return;
-    if (btn) { btn.textContent = '已转化 ' + batches + ' 批'; }
+
+    var estatePayload = {};
+    estatePayload[name] = { last_converted_date: todayISO, converted_today: Math.round(todayUsed + inputPounds) };
+    window.eventEmit('era:updateByObject', { estate: estatePayload });
+    estate.last_converted_date = todayISO;
+    estate.converted_today = Math.round(todayUsed + inputPounds);
+
+    if (btn) btn.textContent = '已转化';
+    if (resultEl) resultEl.textContent = '消耗 ' + Math.round(inputPounds) + ' 磅' + material + '，生成 ' + Math.round(outPounds) + ' 磅' + productName;
 }
 
 // 出售：商铺把该地区仓库所有商品按参考价卖成银币（清空该地区仓库）
@@ -711,7 +875,7 @@ function buildWarehouseTable(regionWarehouse) {
 }
 
 // 仓库展示：按地区分组（每个大洲一个仓库）；onlyRegion 时只显示该地区
-function buildWarehouseBlock(warehouse, onlyRegion) {
+function buildWarehouseBlock(warehouse, onlyRegion, data) {
     var regions = Object.keys(warehouse || {}).filter(function(r) {
         if (onlyRegion && r !== onlyRegion) return false;
         return Object.keys(warehouse[r] || {}).some(function(k) { return (warehouse[r][k] || 0) > 0; });
@@ -734,7 +898,9 @@ function buildWarehouseBlock(warehouse, onlyRegion) {
         checkBtn.textContent = '清点仓库（更新变量）';
         checkBtn.addEventListener('click', function() {
             if (typeof window.eventEmit !== 'function') { alert('无法接入 ERA 指令通道。'); return; }
-            window.eventEmit('era:updateByObject', { warehouse: warehouse });
+            var whExists = !!(data && data.raw && data.raw.warehouse);
+            if (whExists) window.eventEmit('era:updateByObject', { warehouse: warehouse });
+            else window.eventEmit('era:insertByObject', { warehouse: warehouse });
             checkBtn.textContent = '已清点';
             checkBtn.disabled = true;
         });
@@ -848,35 +1014,104 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         card.appendChild(hwrap);
     }
 
-    // 配方（手工业）：每条配方一个 批数输入 + 转化按钮
-    if (estate.recipes && estate.recipes.length) {
-        var rwrap = document.createElement('div');
-        rwrap.className = 'recipe-block';
-        estate.recipes.forEach(function(recipe) {
-            var row = document.createElement('div');
-            row.className = 'recipe-row';
-            var rlabel = document.createElement('span');
-            rlabel.className = 'recipe-label';
-            rlabel.textContent = fmtRecipe(recipe);
-            row.appendChild(rlabel);
-            var rinput = document.createElement('input');
-            rinput.type = 'number';
-            rinput.min = '1';
-            rinput.value = '1';
-            rinput.className = 'recipe-batch';
-            row.appendChild(rinput);
-            var rbtn = document.createElement('button');
-            rbtn.type = 'button';
-            rbtn.className = 'collect-btn';
-            rbtn.textContent = '转化';
-            if (blocked) rbtn.disabled = true;
-            rbtn.addEventListener('click', function() {
-                collectConversion(name, estate, todayISO, warehouse, region, recipe, rinput.value, rbtn);
-            });
-            row.appendChild(rbtn);
-            rwrap.appendChild(row);
+    // 生产转化（手工业且有产品）：生产方式 / 转化比例方针 / 进行生产
+    if (estate.type === '手工业' && estate.product) {
+        var productName = Array.isArray(estate.product) ? estate.product[0] : estate.product;
+        var regionItems = Object.keys((warehouse && warehouse[region]) || {}).filter(function(n) { return (warehouse[region][n] || 0) > 0; });
+
+        var convWrap = document.createElement('div');
+        convWrap.className = 'conv-block';
+        var convTitle = document.createElement('div');
+        convTitle.className = 'data-field-title';
+        convTitle.textContent = '生产转化';
+        convWrap.appendChild(convTitle);
+
+        // 三个按钮：生产方式（左） / 转化比例方针（中） / 进行生产（右）
+        var btnRow = document.createElement('div');
+        btnRow.className = 'conv-btn-row';
+        btnRow.style.cssText = 'display:flex;justify-content:space-between;gap:6px;margin:6px 0;';
+
+        var matSelect = document.createElement('select');
+        matSelect.className = 'collect-btn';
+        matSelect.title = '选择原料（本大洲仓库现有物品，仅名称）';
+        var phOpt = document.createElement('option');
+        phOpt.value = ''; phOpt.textContent = '生产方式：选择原料';
+        matSelect.appendChild(phOpt);
+        regionItems.forEach(function(item) {
+            var o = document.createElement('option');
+            o.value = item; o.textContent = item;
+            matSelect.appendChild(o);
         });
-        card.appendChild(rwrap);
+
+        var policyBtn = document.createElement('button');
+        policyBtn.type = 'button';
+        policyBtn.className = 'collect-btn';
+        policyBtn.textContent = '转化比例方针';
+
+        var produceBtn = document.createElement('button');
+        produceBtn.type = 'button';
+        produceBtn.className = 'collect-btn';
+        produceBtn.textContent = '进行生产';
+        if (blocked) { matSelect.disabled = true; policyBtn.disabled = true; produceBtn.disabled = true; }
+
+        btnRow.appendChild(matSelect);
+        btnRow.appendChild(policyBtn);
+        btnRow.appendChild(produceBtn);
+        convWrap.appendChild(btnRow);
+
+        // 明细：原料→产品 / 方针 / 数量 / 结果
+        var detail = document.createElement('div');
+        detail.style.cssText = 'margin:4px 0;font-size:0.85em;line-height:1.7;';
+        var matLabel = document.createElement('span');
+        function updateMatLabel() {
+            var m = matSelect.value || '（未选）';
+            matLabel.textContent = '原料：' + m + ' → ' + productName + '　';
+        }
+        updateMatLabel();
+        matSelect.addEventListener('change', updateMatLabel);
+        detail.appendChild(matLabel);
+        detail.appendChild(document.createElement('br'));
+
+        var polLabel = document.createElement('span');
+        function updatePolLabel() {
+            var p = getConversionPolicies();
+            var pol = convActivePolicy(p);
+            polLabel.textContent = '方针：' + (pol.name || '?') + '（' + (pol.ratio || '10:1') + '，上限 ' + (p.activeLimit || 0) + ' 磅/日）　';
+        }
+        updatePolLabel();
+        policyBtn.addEventListener('click', function() {
+            openPolicyModal(function() { updatePolLabel(); });
+        });
+        detail.appendChild(polLabel);
+        detail.appendChild(document.createElement('br'));
+
+        var qtySpan = document.createElement('span');
+        qtySpan.textContent = '转化数量：';
+        var qtyInput = document.createElement('input');
+        qtyInput.type = 'number';
+        qtyInput.min = '1';
+        qtyInput.value = '100';
+        qtyInput.className = 'recipe-batch';
+        qtyInput.style.cssText = 'width:70px;padding:2px 4px;';
+        detail.appendChild(qtySpan);
+        detail.appendChild(qtyInput);
+        detail.appendChild(document.createTextNode(' 磅'));
+        convWrap.appendChild(detail);
+
+        var result = document.createElement('div');
+        result.className = 'conv-result';
+        result.style.cssText = 'margin:4px 0;font-size:0.85em;color:#8a5a00;min-height:16px;';
+        convWrap.appendChild(result);
+
+        produceBtn.addEventListener('click', function() {
+            var material = matSelect.value;
+            if (!material) { alert('请先选择原料（生产方式）。'); return; }
+            var p = getConversionPolicies();
+            var pol = convActivePolicy(p);
+            collectConversionByPolicy(name, estate, todayISO, warehouse, region, material, productName, pol, p.activeLimit || 100, qtyInput.value, produceBtn, result);
+        });
+
+        card.appendChild(convWrap);
     }
 
     // 出售（商业）：把该地区仓库商品按参考价卖成银币
@@ -1470,8 +1705,11 @@ function emitAssign(p, data, selectValue, rerender) {
     window.eventEmit('era:updateByObject', { employment: empPayload });
     if (!data.employment) data.employment = {};
     data.employment[p.name] = assignment;
-    if (rerender) rerender();
-    if (typeof App !== 'undefined' && App.ui && App.ui.renderModeSections) App.ui.renderModeSections();
+    if (typeof App !== 'undefined' && App.ui && App.ui.renderModeSections) {
+        try { App.ui.renderModeSections(); } catch (e) { console.error('就职后刷新失败', e); if (rerender) rerender(); }
+    } else if (rerender) {
+        rerender();
+    }
 }
 
 // 解职（删除 employment 里的该人）
@@ -1481,8 +1719,11 @@ function emitUnassign(p, data, rerender) {
     empPayload[p.name] = {};
     window.eventEmit('era:deleteByObject', { employment: empPayload });
     if (data.employment) delete data.employment[p.name];
-    if (rerender) rerender();
-    if (typeof App !== 'undefined' && App.ui && App.ui.renderModeSections) App.ui.renderModeSections();
+    if (typeof App !== 'undefined' && App.ui && App.ui.renderModeSections) {
+        try { App.ui.renderModeSections(); } catch (e) { console.error('解职后刷新失败', e); if (rerender) rerender(); }
+    } else if (rerender) {
+        rerender();
+    }
 }
 
 // 发薪：固定整月扣 monthly_total，写 last_paid
@@ -1884,7 +2125,7 @@ var SECTION_RENDERERS = {
         function render() {
             section.innerHTML = '';
             section.appendChild(buildSectionTitle('&#x1F3E0;', '家产'));
-            section.appendChild(buildWarehouseBlock(warehouse, CURRENT_CONTINENT));
+            section.appendChild(buildWarehouseBlock(warehouse, CURRENT_CONTINENT, data));
 
             // 大洲切换栏
             var contBar = document.createElement('div');

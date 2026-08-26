@@ -545,6 +545,22 @@ body {
     border-radius: 4px;
 }
 
+/* ===== 生产转化 ===== */
+.conv-block {
+    margin-top: 6px;
+    border: 1px solid rgba(184,134,11,0.3);
+    border-radius: 6px;
+    background: var(--bg-quote);
+    padding: 6px 10px;
+}
+.conv-btn-row select.collect-btn {
+    max-width: 150px;
+    padding: 4px 6px;
+}
+.conv-result {
+    min-height: 16px;
+}
+
 /* ===== 船只货物与估价按钮 ===== */
 .cargo-header {
     display: flex;
