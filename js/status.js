@@ -558,8 +558,10 @@ function syncRegionWarehouse(region, oldRegionWarehouse, newRegionWarehouse) {
     var update = {};
     var del = {};
     Object.keys(newRegionWarehouse).forEach(function(k) {
-        if (oldRegionWarehouse && oldRegionWarehouse[k] !== undefined) update[k] = newRegionWarehouse[k];
-        else insert[k] = newRegionWarehouse[k];
+        var v = newRegionWarehouse[k];
+        if (typeof v === 'number') v = Math.floor(v);
+        if (oldRegionWarehouse && oldRegionWarehouse[k] !== undefined) update[k] = v;
+        else insert[k] = v;
     });
     Object.keys(oldRegionWarehouse || {}).forEach(function(k) {
         if (newRegionWarehouse[k] === undefined) del[k] = {};
@@ -643,7 +645,7 @@ function collectEstateHarvest(name, estate, todayISO, warehouse, region, btn, in
     Object.keys(regionWarehouse).forEach(function(k) { newWarehouse[k] = regionWarehouse[k]; });
     var totalGain = 0;
     outputs.forEach(function(o) {
-        var amt = o.monthlyPound * ratio;
+        var amt = Math.floor(o.monthlyPound * ratio);
         newWarehouse[o.crop] = (newWarehouse[o.crop] || 0) + amt;
         totalGain += amt;
     });
@@ -837,7 +839,7 @@ function openPolicyModal(onDone) {
 // 生产转化：把选中的原料按方针比例转化为产品，写入该地区仓库；受每日上限约束
 function collectConversionByPolicy(name, estate, todayISO, warehouse, region, material, productName, policy, limit, inputPounds, btn, resultEl) {
     if (!todayISO) { alert('当前日期无法解析，无法转化。'); return; }
-    inputPounds = parseFloat(inputPounds);
+    inputPounds = Math.floor(parseFloat(inputPounds));
     if (!inputPounds || inputPounds <= 0) { alert('请输入有效的转化数量。'); return; }
     if (!material) { alert('请先选择原料（生产方式）。'); return; }
     var regionWarehouse = (warehouse && warehouse[region]) || {};
@@ -848,7 +850,7 @@ function collectConversionByPolicy(name, estate, todayISO, warehouse, region, ma
     if (todayUsed + inputPounds > limit) { alert('超过今日转化上限（' + limit + ' 磅，今日已用 ' + Math.round(todayUsed) + ' 磅）。'); return; }
 
     var r = convRatioNumbers(policy && policy.ratio);
-    var outPounds = inputPounds * r.out / r.in;
+    var outPounds = Math.floor(inputPounds * r.out / r.in);
 
     var newWarehouse = {};
     Object.keys(regionWarehouse).forEach(function(k) { newWarehouse[k] = regionWarehouse[k]; });
@@ -858,12 +860,12 @@ function collectConversionByPolicy(name, estate, todayISO, warehouse, region, ma
     if (!syncRegionWarehouse(region, regionWarehouse, newWarehouse)) return;
 
     var estatePayload = {};
-    estatePayload[name] = { last_converted_date: todayISO, converted_today: Math.round(todayUsed + inputPounds) };
+    estatePayload[name] = { last_converted_date: todayISO, converted_today: Math.floor(todayUsed + inputPounds) };
     var isFirstConv = !estate.last_converted_date;
     if (isFirstConv) window.eventEmit('era:insertByObject', { estate: estatePayload });
     else window.eventEmit('era:updateByObject', { estate: estatePayload });
     estate.last_converted_date = todayISO;
-    estate.converted_today = Math.round(todayUsed + inputPounds);
+    estate.converted_today = Math.floor(todayUsed + inputPounds);
     if (warehouse) warehouse[region] = newWarehouse;
     syncLocalRender();
 
@@ -1492,7 +1494,7 @@ function computePayrollTotal(rel) {
     getAllPersons(rel).forEach(function(p) {
         total += extractCount(p.data && p.data.expense);
     });
-    return total;
+    return Math.floor(total);
 }
 
 // 薪资明细表：姓名 / 薪资 / 就职地点（含 expense 者才列出）
@@ -1796,11 +1798,8 @@ function emitAssign(p, data, selectValue, rerender) {
     window.eventEmit('era:updateByObject', { employment: empPayload });
     if (!data.employment) data.employment = {};
     data.employment[p.name] = assignment;
-    if (typeof App !== 'undefined' && App.ui && App.ui.renderModeSections) {
-        try { App.ui.renderModeSections(); } catch (e) { console.error('就职后刷新失败', e); if (rerender) rerender(); }
-    } else if (rerender) {
-        rerender();
-    }
+    if (getStatusApp()) syncLocalRender();
+    else if (rerender) rerender();
 }
 
 // 解职（删除 employment 里的该人）
@@ -1810,11 +1809,8 @@ function emitUnassign(p, data, rerender) {
     empPayload[p.name] = {};
     window.eventEmit('era:deleteByObject', { employment: empPayload });
     if (data.employment) delete data.employment[p.name];
-    if (typeof App !== 'undefined' && App.ui && App.ui.renderModeSections) {
-        try { App.ui.renderModeSections(); } catch (e) { console.error('解职后刷新失败', e); if (rerender) rerender(); }
-    } else if (rerender) {
-        rerender();
-    }
+    if (getStatusApp()) syncLocalRender();
+    else if (rerender) rerender();
 }
 
 // 发薪：固定整月扣 monthly_total，写 last_paid
