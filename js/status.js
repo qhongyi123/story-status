@@ -301,25 +301,29 @@ function closeOverlays() {
     document.querySelectorAll('.person-card.person-selected').forEach(function(el) { el.classList.remove('person-selected'); });
 }
 
-// 归一化 story_log：兼容字符串 JSON / 数组 / 字符串元素，统一为 [{ time, text }]
+// 归一化 story_log：兼容旧格式（JSON 字符串 / 对象数组 / 编号对象），统一为字符串数组（旧→新）
 function normalizeStoryLog(raw) {
-    var arr = raw;
-    if (typeof raw === 'string') {
-        try { arr = JSON.parse(raw); } catch (e) { arr = []; }
+    var out = [];
+    if (raw === null || raw === undefined) return out;
+    var src = raw;
+    if (typeof src === 'string') {
+        try { src = JSON.parse(src); } catch (e) { return out; }
     }
-    if (!Array.isArray(arr)) arr = [];
-    return arr.map(function(e) {
-        if (typeof e === 'string') {
-            try {
-                var o = JSON.parse(e);
-                if (o && typeof o === 'object') return o;
-            } catch (er) {}
-            var idx = e.indexOf('：');
-            if (idx !== -1) return { time: e.slice(0, idx), text: e.slice(idx + 1) };
-            return { time: '未知日期', text: e };
+    function pushText(v) {
+        if (v && typeof v === 'object') {
+            out.push(v.text || v.content || '');
+        } else {
+            out.push(String(v == null ? '' : v));
         }
-        return e || {};
-    });
+    }
+    if (Array.isArray(src)) {
+        src.forEach(pushText);
+    } else if (typeof src === 'object') {
+        var keys = Object.keys(src).filter(function(k) { return /^\d+$/.test(k); });
+        keys.sort(function(a, b) { return parseInt(a, 10) - parseInt(b, 10); });
+        keys.forEach(function(k) { pushText(src[k]); });
+    }
+    return out;
 }
 
 // 修改角色薪资：写回 relationship.<名>.expense 并记录涨/降薪到 story_log
@@ -343,24 +347,36 @@ function updatePersonSalary(name, person, input, data) {
 
 // 追加一条故事日志（写入 story_log 变量，保留最近 30 条，并刷新已打开的日志面板）
 function appendStoryLog(data, text) {
-    var todayISO = worldDateToISO(data.world && data.world.date) || '未知日期';
     var log = (data.story_log || []).slice();
-    log.push({ time: todayISO, text: text });
+    log.push(text);
     if (log.length > 30) log = log.slice(-30);
     data.story_log = log;
     if (typeof window.eventEmit === 'function') {
-        // story_log 以「单 JSON 字符串」存储（字符串叶子，避免「对象数组」被后端字符串化）
+        // story_log 以「编号键 + 字符串值」存储（与 estate/warehouse 同构，字符串叶子稳定）
         var exists = !!(data.raw && data.raw.story_log);
-        var payload = { story_log: JSON.stringify(log) };
-        if (exists) window.eventEmit('era:updateByObject', payload);
-        else window.eventEmit('era:insertByObject', payload);
+        var obj = {};
+        log.forEach(function(t, i) { obj[String(i + 1)] = t; });
+        if (exists) {
+            window.eventEmit('era:updateByObject', { story_log: obj });
+            // 清理超出 30 条的旧编号键
+            var rawLog = data.raw.story_log;
+            if (rawLog && typeof rawLog === 'object' && !Array.isArray(rawLog)) {
+                var del = {};
+                Object.keys(rawLog).forEach(function(k) {
+                    if (/^\d+$/.test(k) && parseInt(k, 10) > log.length) del[k] = {};
+                });
+                if (Object.keys(del).length) window.eventEmit('era:deleteByObject', { story_log: del });
+            }
+        } else {
+            window.eventEmit('era:insertByObject', { story_log: obj });
+        }
     }
     syncLocalRender();
     var panel = document.getElementById('story-log-panel');
     if (panel && panel.classList.contains('open')) renderStoryLog(log);
 }
 
-// 渲染故事日志面板：按日期分组（最新在上），日期作为分隔标题
+// 渲染故事日志面板：逐条展示（最新在上），不再按日期分隔
 function renderStoryLog(log) {
     var content = document.getElementById('story-log-content');
     if (!content) return;
@@ -370,23 +386,11 @@ function renderStoryLog(log) {
         return;
     }
     var items = log.slice().reverse();
-    var groups = {};
-    items.forEach(function(e) {
-        var day = e.time || '未知日期';
-        if (!groups[day]) groups[day] = [];
-        groups[day].push(e);
-    });
-    Object.keys(groups).forEach(function(day) {
-        var dayTitle = document.createElement('div');
-        dayTitle.className = 'story-log-date';
-        dayTitle.textContent = day;
-        content.appendChild(dayTitle);
-        groups[day].forEach(function(e) {
-            var row = document.createElement('div');
-            row.className = 'story-log-item';
-            row.textContent = e.text;
-            content.appendChild(row);
-        });
+    items.forEach(function(t) {
+        var row = document.createElement('div');
+        row.className = 'story-log-item';
+        row.textContent = t;
+        content.appendChild(row);
     });
 }
 
