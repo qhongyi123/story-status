@@ -223,6 +223,45 @@ function addWealthSilver(wealthStr, amount) {
     return (s ? s + ', ' : '') + '银币 ' + amount + ' 枚';
 }
 
+/* 本地即时同步与刷新：结算动作成功后同步本地数据并重渲染；
+ * 刷新按钮重读最新变量（同步 AI 剧情改动、重置按钮状态）。 */
+function getStatusApp() {
+    return (typeof window !== 'undefined' && window.STATUS_APP) ? window.STATUS_APP : null;
+}
+
+function setLocalWealth(wealthStr) {
+    var app = getStatusApp();
+    if (app && app.state && app.state.parsedData && app.state.parsedData.user) {
+        app.state.parsedData.user.wealth = wealthStr;
+    }
+}
+
+function syncLocalRender() {
+    var app = getStatusApp();
+    if (app && app.ui && app.ui.updateAll) {
+        app.ui.updateAll();
+    }
+}
+
+function refreshVariables(done) {
+    var app = getStatusApp();
+    if (!app || !app.parsers || !app.parsers.getVariableData) {
+        if (done) done();
+        return;
+    }
+    app.parsers.getVariableData().then(function(raw) {
+        app.state.parsedData = app.parsers.parseData(raw);
+        var prev = app.state.prevRenderData;
+        prev.modeForSections = null;
+        prev.modeExtra = null;
+        prev.world = null;
+        prev.wealth = null;
+        prev.gold = null;
+        app.ui.updateAll();
+        if (done) done();
+    }).catch(function() { if (done) done(); });
+}
+
 // 船只选项卡类别（与 uid27 船只 type 枚举一致，按 uid80 船只参考档位排序）
 var SHIP_TYPES = ['小艇', '渔船', '双桅帆船', '商船', '盖伦船', '大型商船', '护卫舰', '战列舰'];
 
@@ -484,6 +523,8 @@ function collectEstateRevenue(name, estate, todayISO, currentWealth, btn, info) 
     }
 
     estate.last_collected = todayISO;
+    setLocalWealth(newWealth);
+    syncLocalRender();
     if (info) info.textContent = '上次收款：' + todayISO;
     if (btn) { btn.textContent = '已收 ' + amount + ' 银币'; btn.disabled = true; }
 }
@@ -615,6 +656,8 @@ function collectEstateHarvest(name, estate, todayISO, warehouse, region, btn, in
     else window.eventEmit('era:updateByObject', { estate: estatePayload });
 
     estate.last_harvested = todayISO;
+    if (warehouse) warehouse[region] = newWarehouse;
+    syncLocalRender();
     if (info) info.textContent = '上次收获：' + todayISO;
     if (btn) { btn.textContent = '已收 ' + Math.round(totalGain) + ' 磅'; btn.disabled = true; }
 }
@@ -821,6 +864,8 @@ function collectConversionByPolicy(name, estate, todayISO, warehouse, region, ma
     else window.eventEmit('era:updateByObject', { estate: estatePayload });
     estate.last_converted_date = todayISO;
     estate.converted_today = Math.round(todayUsed + inputPounds);
+    if (warehouse) warehouse[region] = newWarehouse;
+    syncLocalRender();
 
     if (btn) btn.textContent = '已转化';
     if (resultEl) resultEl.textContent = '消耗 ' + Math.round(inputPounds) + ' 磅' + material + '，生成 ' + Math.round(outPounds) + ' 磅' + productName;
@@ -843,6 +888,9 @@ function collectSell(name, estate, todayISO, currentWealth, warehouse, region, b
     if (!syncRegionWarehouse(region, regionWarehouse, newWarehouse)) return;
     window.eventEmit('era:updateByObject', { user: { wealth: newWealth } });
 
+    if (warehouse) warehouse[region] = newWarehouse;
+    setLocalWealth(newWealth);
+    syncLocalRender();
     if (btn) { btn.textContent = '已卖 ' + total + ' 银币'; btn.disabled = true; }
     if (info) info.textContent = '售出：' + items.join('、');
 }
@@ -899,19 +947,15 @@ function buildWarehouseBlock(warehouse, onlyRegion, data) {
         var titleSpan = document.createElement('span');
         titleSpan.textContent = '仓库 · ' + region;
         title.appendChild(titleSpan);
-        var checkBtn = document.createElement('button');
-        checkBtn.type = 'button';
-        checkBtn.className = 'collect-btn';
-        checkBtn.textContent = '清点仓库（更新变量）';
-        checkBtn.addEventListener('click', function() {
-            if (typeof window.eventEmit !== 'function') { alert('无法接入 ERA 指令通道。'); return; }
-            var whExists = !!(data && data.raw && data.raw.warehouse);
-            if (whExists) window.eventEmit('era:updateByObject', { warehouse: warehouse });
-            else window.eventEmit('era:insertByObject', { warehouse: warehouse });
-            checkBtn.textContent = '已清点';
-            checkBtn.disabled = true;
+        var refreshBtn = document.createElement('button');
+        refreshBtn.type = 'button';
+        refreshBtn.className = 'collect-btn';
+        refreshBtn.textContent = '刷新';
+        refreshBtn.title = '重新读取最新变量并刷新显示（同步 AI 剧情改动）';
+        refreshBtn.addEventListener('click', function() {
+            refreshVariables();
         });
-        title.appendChild(checkBtn);
+        title.appendChild(refreshBtn);
         block.appendChild(title);
         block.appendChild(buildWarehouseTable(warehouse[region]));
     });
@@ -1788,6 +1832,8 @@ function paySalaries(monthlyTotal, todayISO, currentWealth, payroll, btn) {
         window.eventEmit('era:updateByObject', { user: { wealth: newWealth }, payroll: payload });
     }
     if (payroll) payroll.last_paid = todayISO;
+    setLocalWealth(newWealth);
+    syncLocalRender();
     if (btn) { btn.textContent = '已发 ' + monthlyTotal + ' 银币'; btn.disabled = true; }
 }
 
@@ -2899,7 +2945,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // 模式/世界观切换：mode、worldview 或区块数据变化时重渲染动态区块
                     var extraJson = JSON.stringify({
                         estate: d.estate, ships: d.ships, relationship: d.relationship,
-                        region: d.region, payroll: d.payroll,
+                        region: d.region, payroll: d.payroll, warehouse: d.warehouse,
                         employment: d.employment, command_usage: d.command_usage
                     });
                     if (d.mode !== prev.modeForSections || d.worldview !== prev.worldviewForSections || extraJson !== prev.modeExtra) {
@@ -3305,4 +3351,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     App.init();
+    window.STATUS_APP = App;
 });
