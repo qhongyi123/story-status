@@ -143,6 +143,9 @@ var REL_GROUP_OPEN = {};
 // 薪资确认按钮冷却表：名字 -> 到期时间戳(ms)，跨重渲染保持冷却
 var SALARY_COOLDOWN = {};
 
+// story_log 下一个编号（单调递增，只增不减；解析时从后端最大编号恢复）
+var STORY_LOG_NEXT = 1;
+
 // 人员分配当前选中的资产 { type: 'estate'|'ship', name }
 var CURRENT_ASSIGN_TARGET = null;
 
@@ -301,9 +304,10 @@ function closeOverlays() {
     document.querySelectorAll('.person-card.person-selected').forEach(function(el) { el.classList.remove('person-selected'); });
 }
 
-// 归一化 story_log：兼容旧格式（JSON 字符串 / 对象数组 / 编号对象），统一为字符串数组（旧→新）
+// 归一化 story_log：兼容旧格式（JSON 字符串 / 对象数组 / 编号对象），统一为字符串数组（旧→新），并恢复下一个编号
 function normalizeStoryLog(raw) {
     var out = [];
+    STORY_LOG_NEXT = 1;
     if (raw === null || raw === undefined) return out;
     var src = raw;
     if (typeof src === 'string') {
@@ -318,10 +322,17 @@ function normalizeStoryLog(raw) {
     }
     if (Array.isArray(src)) {
         src.forEach(pushText);
+        STORY_LOG_NEXT = out.length + 1;
     } else if (typeof src === 'object') {
         var keys = Object.keys(src).filter(function(k) { return /^\d+$/.test(k); });
         keys.sort(function(a, b) { return parseInt(a, 10) - parseInt(b, 10); });
-        keys.forEach(function(k) { pushText(src[k]); });
+        var max = 0;
+        keys.forEach(function(k) {
+            pushText(src[k]);
+            var n = parseInt(k, 10);
+            if (n > max) max = n;
+        });
+        STORY_LOG_NEXT = max + 1;
     }
     return out;
 }
@@ -346,31 +357,17 @@ function updatePersonSalary(name, person, input, data) {
     syncLocalRender();
 }
 
-// 追加一条故事日志（写入 story_log 变量，保留最近 30 条，并刷新已打开的日志面板）
+// 追加一条故事日志（写入 story_log 变量；只增不删，刷新已打开的日志面板）
 function appendStoryLog(data, text) {
     var log = (data.story_log || []).slice();
     log.push(text);
-    if (log.length > 30) log = log.slice(-30);
     data.story_log = log;
     if (typeof window.eventEmit === 'function') {
-        // story_log 以「编号键 + 字符串值」存储（与 estate/warehouse 同构，字符串叶子稳定）
-        var exists = !!(data.raw && data.raw.story_log);
-        var obj = {};
-        log.forEach(function(t, i) { obj[String(i + 1)] = t; });
-        if (exists) {
-            window.eventEmit('era:updateByObject', { story_log: obj });
-            // 清理超出 30 条的旧编号键
-            var rawLog = data.raw.story_log;
-            if (rawLog && typeof rawLog === 'object' && !Array.isArray(rawLog)) {
-                var del = {};
-                Object.keys(rawLog).forEach(function(k) {
-                    if (/^\d+$/.test(k) && parseInt(k, 10) > log.length) del[k] = {};
-                });
-                if (Object.keys(del).length) window.eventEmit('era:deleteByObject', { story_log: del });
-            }
-        } else {
-            window.eventEmit('era:insertByObject', { story_log: obj });
-        }
+        // 新条目 = 新编号键 → insertByObject（只写不存在的路径，正好匹配新键；旧键不动）
+        var payload = {};
+        payload[String(STORY_LOG_NEXT)] = text;
+        STORY_LOG_NEXT++;
+        window.eventEmit('era:insertByObject', { story_log: payload });
     }
     var panel = document.getElementById('story-log-panel');
     if (panel && panel.classList.contains('open')) renderStoryLog(log);
