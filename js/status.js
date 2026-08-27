@@ -346,11 +346,15 @@ function appendStoryLog(data, text) {
     if (log.length > 30) log = log.slice(-30);
     data.story_log = log;
     if (typeof window.eventEmit === 'function') {
-        // 以 JSON 字符串整体写入，避免 ERA 对「对象数组」序列化出错
+        // 以干净的对象数组写入：路径缺失时先用「空数组」insert 创建，再 update 整组写入。
+        // （不可直接对非空对象数组 insert——ERA 会把首元素字符串化）
         var exists = !!(data.raw && data.raw.story_log);
-        var payload = { story_log: JSON.stringify(log) };
-        if (exists) window.eventEmit('era:updateByObject', payload);
-        else window.eventEmit('era:insertByObject', payload);
+        if (exists) {
+            window.eventEmit('era:updateByObject', { story_log: log });
+        } else {
+            window.eventEmit('era:insertByObject', { story_log: [] });
+            window.eventEmit('era:updateByObject', { story_log: log });
+        }
     }
     syncLocalRender();
     var panel = document.getElementById('story-log-panel');
@@ -1615,6 +1619,10 @@ function buildPersonCard(name, person, employment, data) {
     salaryConfirm.addEventListener('click', function(e) {
         e.stopPropagation();
         updatePersonSalary(name, person, salaryInput, data);
+        salaryConfirm.disabled = true;
+        setTimeout(function() {
+            if (salaryConfirm.isConnected) salaryConfirm.disabled = false;
+        }, 2000);
     });
     salaryRow.appendChild(salaryConfirm);
     card.appendChild(salaryRow);
@@ -2420,11 +2428,12 @@ var SECTION_RENDERERS = {
             });
             section.appendChild(tabBar);
 
-            // 转化方针编辑与命名（手工业转化方针的编辑入口）
+            // 转化方针编辑与命名（仅手工业选项卡下显示）
             var policyEditBtn = document.createElement('button');
             policyEditBtn.type = 'button';
             policyEditBtn.className = 'collect-btn';
             policyEditBtn.textContent = '转化方针编辑与命名';
+            policyEditBtn.style.display = (CURRENT_ESTATE_TAB === '手工业') ? '' : 'none';
             policyEditBtn.addEventListener('click', function() {
                 openPolicyModal(function() { refreshPolicySelects(); });
             });
@@ -2466,6 +2475,7 @@ var SECTION_RENDERERS = {
                 tabBar.querySelectorAll('.entity-tab').forEach(function(b) {
                     b.classList.toggle('active', b === btn);
                 });
+                policyEditBtn.style.display = (CURRENT_ESTATE_TAB === '手工业') ? '' : 'none';
                 closeOverlays();
                 renderContent();
             });
