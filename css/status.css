@@ -2,6 +2,7 @@
 
 :root {
     --card-max-width: 700px;
+    --card-height: 480px;
     --section-gap: 1.5rem;
     --base-font-size: 16px;
     --avatar-size: 60px;
@@ -56,6 +57,7 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     position: relative;
     width: 100%; max-width: var(--card-max-width);
+    height: var(--card-height);
     margin: 10px auto 0; box-sizing: border-box; transition: max-width 0.3s ease;
 }
 
@@ -69,8 +71,10 @@ body {
     background: var(--bg-content);
     border: 1px solid rgba(184, 134, 11, 0.5);
     border-radius: 12px;
-    margin: 6px 6px 6px 20px;
-    padding: 1.25rem 1.5rem; position: relative; z-index: 1;
+    position: absolute; top: 6px; bottom: 6px; left: 20px; right: 6px;
+    padding: 1.25rem 1.5rem; z-index: 1;
+    overflow-y: auto; overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 .collapse-badge {
@@ -92,7 +96,8 @@ body {
 }
 .status-card.global-collapsed .card-content,
 .status-card.global-collapsed .bookmark,
-.status-card.global-collapsed .collapse-badge {
+.status-card.global-collapsed .collapse-badge,
+.status-card.global-collapsed .wib {
     display: none !important;
 }
 .status-card.global-collapsed::after {
@@ -108,7 +113,6 @@ body {
 
 .page {
     display: none;
-    min-height: var(--page-min-height);
     animation: fadeIn 0.4s ease forwards;
 }
 .page.active {
@@ -380,7 +384,7 @@ body {
     body { padding: 4px 18px 0; }
     .status-card { margin: 5px auto 0; border-radius: 8px 16px 16px 8px; }
     .status-card::before { width: 10px; border-radius: 6px 0 0 6px; }
-    .card-content { padding: 1rem; margin: 4px 4px 4px 12px; border-radius: 8px;}
+    .card-content { padding: 1rem; top: 4px; bottom: 4px; left: 12px; right: 4px; border-radius: 8px;}
     .header { flex-direction: column; text-align: center; }
     .identity { margin-left: 0; margin-top: 1rem; }
 }
@@ -815,7 +819,7 @@ body {
 /* ===== 世界信息条（持久悬浮右上角，所有界面可见，弹出层不挤压下方内容） ===== */
 .wib {
     position: absolute;
-    top: 1.25rem;
+    top: 2rem;
     right: 1.5rem;
     z-index: 55;
     display: inline-flex;
