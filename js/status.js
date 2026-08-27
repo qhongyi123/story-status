@@ -140,6 +140,9 @@ var CURRENT_REL_TAB = '管理';
 // 相关人员分组的展开状态（仅会话内记忆、不持久化；状态栏重新出现时恢复默认折叠）
 var REL_GROUP_OPEN = {};
 
+// 薪资确认按钮冷却表：名字 -> 到期时间戳(ms)，跨重渲染保持冷却
+var SALARY_COOLDOWN = {};
+
 // 人员分配当前选中的资产 { type: 'estate'|'ship', name }
 var CURRENT_ASSIGN_TARGET = null;
 
@@ -346,15 +349,11 @@ function appendStoryLog(data, text) {
     if (log.length > 30) log = log.slice(-30);
     data.story_log = log;
     if (typeof window.eventEmit === 'function') {
-        // 以干净的对象数组写入：路径缺失时先用「空数组」insert 创建，再 update 整组写入。
-        // （不可直接对非空对象数组 insert——ERA 会把首元素字符串化）
+        // story_log 以「单 JSON 字符串」存储（字符串叶子，避免「对象数组」被后端字符串化）
         var exists = !!(data.raw && data.raw.story_log);
-        if (exists) {
-            window.eventEmit('era:updateByObject', { story_log: log });
-        } else {
-            window.eventEmit('era:insertByObject', { story_log: [] });
-            window.eventEmit('era:updateByObject', { story_log: log });
-        }
+        var payload = { story_log: JSON.stringify(log) };
+        if (exists) window.eventEmit('era:updateByObject', payload);
+        else window.eventEmit('era:insertByObject', payload);
     }
     syncLocalRender();
     var panel = document.getElementById('story-log-panel');
@@ -1614,14 +1613,22 @@ function buildPersonCard(name, person, employment, data) {
     salaryRow.appendChild(salaryUnit);
     var salaryConfirm = document.createElement('button');
     salaryConfirm.type = 'button';
-    salaryConfirm.className = 'collect-btn';
+    salaryConfirm.className = 'collect-btn salary-confirm';
     salaryConfirm.textContent = '确认';
+    salaryConfirm.dataset.person = name;
+    if ((SALARY_COOLDOWN[name] || 0) > Date.now()) salaryConfirm.disabled = true;
     salaryConfirm.addEventListener('click', function(e) {
         e.stopPropagation();
+        if (salaryConfirm.disabled) return;
         updatePersonSalary(name, person, salaryInput, data);
+        var exp = Date.now() + 2000;
+        SALARY_COOLDOWN[name] = exp;
         salaryConfirm.disabled = true;
         setTimeout(function() {
-            if (salaryConfirm.isConnected) salaryConfirm.disabled = false;
+            delete SALARY_COOLDOWN[name];
+            document.querySelectorAll('.salary-confirm').forEach(function(b) {
+                if (b.getAttribute('data-person') === name) b.disabled = false;
+            });
         }, 2000);
     });
     salaryRow.appendChild(salaryConfirm);
