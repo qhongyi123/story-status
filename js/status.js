@@ -343,6 +343,7 @@ function updatePersonSalary(name, person, input, data) {
     var verb = next > old ? '涨薪' : '降薪';
     var text = verb + '：' + name + ' 的月薪由 ' + old + ' 银币' + (next > old ? '涨至' : '降至') + ' ' + next + ' 银币';
     appendStoryLog(data, text);
+    syncLocalRender();
 }
 
 // 追加一条故事日志（写入 story_log 变量，保留最近 30 条，并刷新已打开的日志面板）
@@ -371,9 +372,16 @@ function appendStoryLog(data, text) {
             window.eventEmit('era:insertByObject', { story_log: obj });
         }
     }
-    syncLocalRender();
     var panel = document.getElementById('story-log-panel');
     if (panel && panel.classList.contains('open')) renderStoryLog(log);
+}
+
+// 追加故事日志（从当前 parsedData 取上下文；由结算动作内部调用，不触发重渲染）
+function appendStatusLog(text) {
+    var app = getStatusApp();
+    if (app && app.state && app.state.parsedData) {
+        appendStoryLog(app.state.parsedData, text);
+    }
 }
 
 // 渲染故事日志面板：逐条展示（最新在上），不再按日期分隔
@@ -671,6 +679,7 @@ function collectEstateRevenue(name, estate, todayISO, currentWealth, btn, info) 
 
     estate.last_collected = todayISO;
     setLocalWealth(newWealth);
+    appendStatusLog('经营：' + name + '营收了' + amount + '银币');
     syncLocalRender();
     if (info) info.textContent = '上次收款：' + todayISO;
     if (btn) { btn.textContent = '已收 ' + amount + ' 银币'; btn.disabled = true; }
@@ -806,6 +815,8 @@ function collectEstateHarvest(name, estate, todayISO, warehouse, region, btn, in
 
     estate.last_harvested = todayISO;
     if (warehouse) warehouse[region] = newWarehouse;
+    var cropNames = outputs.map(function(o) { return o.crop; }).join('、');
+    appendStatusLog('收获：' + name + '收获了' + cropNames + Math.round(totalGain) + ' 磅');
     syncLocalRender();
     if (info) info.textContent = '上次收获：' + todayISO;
     if (btn) { btn.textContent = '已收 ' + Math.round(totalGain) + ' 磅'; btn.disabled = true; }
@@ -1014,6 +1025,7 @@ function collectConversionByPolicy(name, estate, todayISO, warehouse, region, ma
     estate.last_converted_date = todayISO;
     estate.converted_today = Math.floor(todayUsed + inputPounds);
     if (warehouse) warehouse[region] = newWarehouse;
+    appendStatusLog('生产：' + name + '生产了' + Math.round(outPounds) + '磅' + productName);
     syncLocalRender();
 
     if (btn) btn.textContent = '已转化';
@@ -1039,6 +1051,7 @@ function collectSell(name, estate, todayISO, currentWealth, warehouse, region, b
 
     if (warehouse) warehouse[region] = newWarehouse;
     setLocalWealth(newWealth);
+    appendStatusLog('出售：' + name + '售出了' + items.join('、') + '，获得 ' + total + ' 银币');
     syncLocalRender();
     if (btn) { btn.textContent = '已卖 ' + total + ' 银币'; btn.disabled = true; }
     if (info) info.textContent = '售出：' + items.join('、');
@@ -2009,6 +2022,7 @@ function paySalaries(monthlyTotal, todayISO, currentWealth, payroll, btn) {
     }
     if (payroll) payroll.last_paid = todayISO;
     setLocalWealth(newWealth);
+    appendStatusLog('发薪：给所有家人、手下、奴隶等共支付了薪资 ' + monthlyTotal + ' 银币');
     syncLocalRender();
     if (btn) { btn.textContent = '已发 ' + monthlyTotal + ' 银币'; btn.disabled = true; }
 }
@@ -2221,16 +2235,36 @@ function renderCommandText(text, personName, person) {
     return String(text).replace(/\{角色\}/g, personName).replace(/\{TA\}/g, ta);
 }
 
-// 发送玩家发言（SillyTavern 通道接入点；当前复制到剪贴板兜底）
+// 发送玩家发言：写入 SillyTavern 聊天输入框（HTML 注入 iframe 通过 parent 访问），失败则弹窗提示已复制到剪贴板
 function sendPlayerMessage(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function() {
+    var textarea = null;
+    try {
+        if (window.parent && window.parent.document) {
+            textarea = window.parent.document.getElementById('send_textarea');
+        }
+    } catch (e) { textarea = null; }
+    if (!textarea) {
+        try { textarea = document.getElementById('send_textarea'); } catch (e) { textarea = null; }
+    }
+    if (textarea) {
+        textarea.value = text;
+        try { textarea.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+        try { textarea.focus(); } catch (e) {}
+        return;
+    }
+    // 兜底：复制到剪贴板，并用删除物品同款弹窗提示
+    var app = getStatusApp();
+    function showNotice() {
+        if (app && app.actions && app.actions.openClipboardNotice) {
+            app.actions.openClipboardNotice(text);
+        } else {
             alert('已生成发言并复制到剪贴板：\n\n' + text);
-        }).catch(function() {
-            alert('已生成发言：\n\n' + text);
-        });
+        }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(showNotice).catch(showNotice);
     } else {
-        alert('已生成发言：\n\n' + text);
+        showNotice();
     }
 }
 
@@ -2776,6 +2810,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnDelete: document.getElementById('detail-delete-btn'),
                 btnClose: document.getElementById('detail-close-btn')
             },
+            clipboardNotice: {
+                panel: document.getElementById('clipboard-notice-panel'),
+                text: document.getElementById('clipboard-notice-text'),
+                btnClose: document.getElementById('clipboard-notice-close-btn')
+            },
             pageTurnBtn: document.getElementById('page-turn-bookmark'),
             pagePrevBtn: document.getElementById('page-prev-bookmark'),
             controlPanelPage: document.getElementById('page-7')
@@ -3279,6 +3318,14 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             cancelDelete: function() { App.elements.deleteConfirm.panel.classList.remove('active'); App.state.pendingDeleteItem = null; },
 
+            openClipboardNotice: function(text) {
+                if (App.elements.clipboardNotice.text) App.elements.clipboardNotice.text.textContent = text;
+                App.elements.clipboardNotice.panel.classList.add('active');
+            },
+            closeClipboardNotice: function() {
+                App.elements.clipboardNotice.panel.classList.remove('active');
+            },
+
             toggleEditMode: function() {
                 var self = App;
                 self.state.isEditMode = !self.state.isEditMode;
@@ -3455,15 +3502,17 @@ document.addEventListener('DOMContentLoaded', function() {
             var avatar = App.elements.avatar;
             var deleteConfirm = App.elements.deleteConfirm;
             var itemDetail = App.elements.itemDetail;
+            var clipboardNotice = App.elements.clipboardNotice;
             var pageTurnBtn = App.elements.pageTurnBtn;
 
             function toggleModal(panel) { panel.classList.toggle('active'); }
 
-            [settings.panel, deleteConfirm.panel, itemDetail.panel].forEach(function(panel) {
+            [settings.panel, deleteConfirm.panel, itemDetail.panel, clipboardNotice.panel].forEach(function(panel) {
                 panel.addEventListener('click', function(e) {
                     if (e.target === panel) {
                         if (panel === deleteConfirm.panel) App.actions.cancelDelete();
                         else if (panel === itemDetail.panel) App.actions.closeItemDetail();
+                        else if (panel === clipboardNotice.panel) App.actions.closeClipboardNotice();
                         else toggleModal(panel);
                     }
                 });
@@ -3492,6 +3541,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 App.actions.closeItemDetail();
                 App.actions.deleteInventoryItem(App.state.pendingDeleteItem);
             });
+
+            clipboardNotice.btnClose.addEventListener('click', App.actions.closeClipboardNotice);
 
             pageTurnBtn.addEventListener('click', App.actions.turnPage);
             App.elements.pagePrevBtn.addEventListener('click', App.actions.turnPageBack);

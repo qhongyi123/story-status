@@ -2,7 +2,6 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<base href="https://qhongyi123.github.io/story-status/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>角色状态面板 - Bookmark Pagination</title>
 <link rel="stylesheet" href="css/status.css">
@@ -154,6 +153,21 @@
             <div class="helper-actions" style="gap: 0.6rem;">
                 <button id="detail-delete-btn" class="helper-btn" style="background: var(--color-delete); border-color: #500014; color: white; padding: 6px 18px; font-size: 0.85rem;">删除物品</button>
                 <button id="detail-close-btn" class="helper-btn cancel" style="padding: 6px 18px; font-size: 0.85rem;">退出</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="clipboard-notice-panel" class="modal-overlay">
+        <div class="helper-card-v2" style="max-width: 480px;">
+            <div class="helper-header">
+                <span class="helper-title">发言已生成</span>
+            </div>
+            <div class="helper-content" style="text-align: left; font-weight: normal;">
+                未找到输入框，发言已复制到剪贴板：
+                <div id="clipboard-notice-text" style="margin-top: 8px; padding: 8px 10px; border: 1px dashed rgba(212,175,55,0.4); border-radius: 6px; color: var(--color-text-dark); white-space: pre-wrap; word-break: break-all; font-weight: normal;"></div>
+            </div>
+            <div class="helper-actions">
+                <button id="clipboard-notice-close-btn" class="helper-btn cancel">关闭</button>
             </div>
         </div>
     </div>
