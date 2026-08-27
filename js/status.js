@@ -668,22 +668,24 @@ function openPolicyModal(onDone) {
     var p = getConversionPolicies();
     var overlay = document.createElement('div');
     overlay.className = 'conv-policy-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;';
     var panel = document.createElement('div');
     panel.className = 'conv-policy-panel';
-    panel.style.cssText = 'background:#fff;border-radius:8px;padding:16px;max-width:560px;width:92%;max-height:85vh;overflow:auto;font-size:13px;color:#333;box-sizing:border-box;';
 
     var head = document.createElement('div');
-    head.style.cssText = 'font-weight:bold;font-size:15px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;';
+    head.className = 'conv-policy-head';
     var headTitle = document.createElement('span');
+    headTitle.className = 'conv-policy-title';
     headTitle.textContent = '转化比例方针';
     var closeBtn = document.createElement('button');
-    closeBtn.type = 'button'; closeBtn.textContent = '✕';
+    closeBtn.type = 'button';
+    closeBtn.className = 'conv-policy-close';
+    closeBtn.textContent = '✕';
     closeBtn.addEventListener('click', function() { overlay.remove(); if (onDone) onDone(); });
     head.appendChild(headTitle); head.appendChild(closeBtn);
     panel.appendChild(head);
 
     var listArea = document.createElement('div');
+    listArea.className = 'conv-policy-list';
     panel.appendChild(listArea);
 
     function renderPolicyList() {
@@ -695,13 +697,13 @@ function openPolicyModal(onDone) {
         sections.forEach(function(sec) {
             if (!sec.items.length) return;
             var secTitle = document.createElement('div');
-            secTitle.style.cssText = 'font-weight:bold;margin:10px 0 4px;color:#666;';
+            secTitle.className = 'conv-policy-section-title';
             secTitle.textContent = sec.label;
             listArea.appendChild(secTitle);
             sec.items.forEach(function(policy, i) {
                 var key = sec.baseKey + i;
                 var row = document.createElement('div');
-                row.style.cssText = 'border:1px solid #ddd;border-radius:6px;padding:8px;margin-bottom:8px;background:' + (key === p.activeKey ? '#f5f0e0' : '#fff') + ';';
+                row.className = 'conv-policy-row' + (key === p.activeKey ? ' selected' : '');
                 var radio = document.createElement('input');
                 radio.type = 'radio'; radio.name = 'conv-policy'; radio.checked = (key === p.activeKey);
                 radio.addEventListener('change', function() {
@@ -714,17 +716,18 @@ function openPolicyModal(onDone) {
                 var nameInput = document.createElement('input');
                 nameInput.type = 'text'; nameInput.value = policy.name;
                 nameInput.title = '方针名称';
-                nameInput.style.cssText = 'font-weight:bold;width:110px;margin:0 6px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;';
+                nameInput.className = 'conv-policy-input conv-policy-name';
                 nameInput.addEventListener('change', function() { policy.name = nameInput.value; saveConversionPolicies(); });
                 row.appendChild(nameInput);
                 var ratioInput = document.createElement('input');
                 ratioInput.type = 'text'; ratioInput.value = policy.ratio;
                 ratioInput.title = '转化比例（原料:产品，如 10:1）';
-                ratioInput.style.cssText = 'width:60px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;';
+                ratioInput.className = 'conv-policy-input conv-policy-ratio';
                 ratioInput.addEventListener('change', function() { policy.ratio = ratioInput.value; saveConversionPolicies(); });
                 row.appendChild(ratioInput);
                 var limitSel = document.createElement('select');
                 limitSel.title = '每日转化上限（磅）';
+                limitSel.className = 'conv-policy-input conv-policy-limit';
                 (policy.limits || []).forEach(function(l) {
                     var o = document.createElement('option');
                     o.value = l; o.textContent = l + ' 磅/日';
@@ -739,16 +742,15 @@ function openPolicyModal(onDone) {
                 var descInput = document.createElement('input');
                 descInput.type = 'text'; descInput.value = policy.desc || '';
                 descInput.placeholder = '说明（适合何种手工业）';
-                descInput.style.cssText = 'width:100%;margin-top:4px;padding:2px 4px;border:1px solid #eee;border-radius:3px;';
+                descInput.className = 'conv-policy-input conv-policy-desc';
                 descInput.addEventListener('change', function() { policy.desc = descInput.value; saveConversionPolicies(); });
-                row.appendChild(document.createElement('br'));
                 row.appendChild(descInput);
                 listArea.appendChild(row);
             });
         });
         if (!p.defaults.length && !p.customs.length) {
             var empty = document.createElement('div');
-            empty.style.cssText = 'color:#999;padding:10px 0;';
+            empty.className = 'conv-policy-empty';
             empty.textContent = '暂无方针';
             listArea.appendChild(empty);
         }
@@ -756,9 +758,10 @@ function openPolicyModal(onDone) {
     renderPolicyList();
 
     var foot = document.createElement('div');
-    foot.style.cssText = 'display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;';
+    foot.className = 'conv-policy-foot';
     var addBtn = document.createElement('button');
-    addBtn.type = 'button'; addBtn.textContent = '+ 新增自定义方针';
+    addBtn.type = 'button'; addBtn.className = 'collect-btn';
+    addBtn.textContent = '+ 新增自定义方针';
     addBtn.addEventListener('click', function() {
         p.customs.push({ name: '自定义方针' + (p.customs.length + 1), ratio: '10:1', limits: [100, 500], desc: '' });
         p.activeKey = 'c' + (p.customs.length - 1);
@@ -767,7 +770,8 @@ function openPolicyModal(onDone) {
         renderPolicyList();
     });
     var resetBtn = document.createElement('button');
-    resetBtn.type = 'button'; resetBtn.textContent = '方针重置';
+    resetBtn.type = 'button'; resetBtn.className = 'collect-btn';
+    resetBtn.textContent = '方针重置';
     resetBtn.addEventListener('click', function() {
         p.defaults = JSON.parse(JSON.stringify(DEFAULT_POLICIES));
         p.customs = [];
@@ -777,7 +781,8 @@ function openPolicyModal(onDone) {
         renderPolicyList();
     });
     var doneBtn = document.createElement('button');
-    doneBtn.type = 'button'; doneBtn.textContent = '完成';
+    doneBtn.type = 'button'; doneBtn.className = 'collect-btn';
+    doneBtn.textContent = '完成';
     doneBtn.addEventListener('click', function() { overlay.remove(); if (onDone) onDone(); });
     foot.appendChild(addBtn); foot.appendChild(resetBtn); foot.appendChild(doneBtn);
     panel.appendChild(foot);
@@ -811,7 +816,9 @@ function collectConversionByPolicy(name, estate, todayISO, warehouse, region, ma
 
     var estatePayload = {};
     estatePayload[name] = { last_converted_date: todayISO, converted_today: Math.round(todayUsed + inputPounds) };
-    window.eventEmit('era:updateByObject', { estate: estatePayload });
+    var isFirstConv = !estate.last_converted_date;
+    if (isFirstConv) window.eventEmit('era:insertByObject', { estate: estatePayload });
+    else window.eventEmit('era:updateByObject', { estate: estatePayload });
     estate.last_converted_date = todayISO;
     estate.converted_today = Math.round(todayUsed + inputPounds);
 
@@ -1014,23 +1021,17 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         card.appendChild(hwrap);
     }
 
-    // 生产转化（手工业且有产品）：生产方式 / 转化比例方针 / 进行生产
+    // 生产转化（手工业且有产品）：生产方式 / 转化比例方针 / 进行生产（明细放对应按钮下方）
     if (estate.type === '手工业' && estate.product) {
         var productName = Array.isArray(estate.product) ? estate.product[0] : estate.product;
         var regionItems = Object.keys((warehouse && warehouse[region]) || {}).filter(function(n) { return (warehouse[region][n] || 0) > 0; });
 
         var convWrap = document.createElement('div');
         convWrap.className = 'conv-block';
-        var convTitle = document.createElement('div');
-        convTitle.className = 'data-field-title';
-        convTitle.textContent = '生产转化';
-        convWrap.appendChild(convTitle);
 
-        // 三个按钮：生产方式（左） / 转化比例方针（中） / 进行生产（右）
-        var btnRow = document.createElement('div');
-        btnRow.className = 'conv-btn-row';
-        btnRow.style.cssText = 'display:flex;justify-content:space-between;gap:6px;margin:6px 0;';
-
+        // ① 生产方式（明细：原料 → 产品）
+        var matItem = document.createElement('div');
+        matItem.className = 'conv-item';
         var matSelect = document.createElement('select');
         matSelect.className = 'collect-btn';
         matSelect.title = '选择原料（本大洲仓库现有物品，仅名称）';
@@ -1042,65 +1043,65 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
             o.value = item; o.textContent = item;
             matSelect.appendChild(o);
         });
+        matItem.appendChild(matSelect);
+        var matDetail = document.createElement('div');
+        matDetail.className = 'conv-detail';
+        function updateMatLabel() {
+            var m = matSelect.value || '（未选）';
+            matDetail.textContent = '原料：' + m + ' → ' + productName;
+        }
+        updateMatLabel();
+        matSelect.addEventListener('change', updateMatLabel);
+        matItem.appendChild(matDetail);
+        convWrap.appendChild(matItem);
 
+        // ② 转化比例方针（明细：方针与上限）
+        var polItem = document.createElement('div');
+        polItem.className = 'conv-item';
         var policyBtn = document.createElement('button');
         policyBtn.type = 'button';
         policyBtn.className = 'collect-btn';
         policyBtn.textContent = '转化比例方针';
-
-        var produceBtn = document.createElement('button');
-        produceBtn.type = 'button';
-        produceBtn.className = 'collect-btn';
-        produceBtn.textContent = '进行生产';
-        if (blocked) { matSelect.disabled = true; policyBtn.disabled = true; produceBtn.disabled = true; }
-
-        btnRow.appendChild(matSelect);
-        btnRow.appendChild(policyBtn);
-        btnRow.appendChild(produceBtn);
-        convWrap.appendChild(btnRow);
-
-        // 明细：原料→产品 / 方针 / 数量 / 结果
-        var detail = document.createElement('div');
-        detail.style.cssText = 'margin:4px 0;font-size:0.85em;line-height:1.7;';
-        var matLabel = document.createElement('span');
-        function updateMatLabel() {
-            var m = matSelect.value || '（未选）';
-            matLabel.textContent = '原料：' + m + ' → ' + productName + '　';
-        }
-        updateMatLabel();
-        matSelect.addEventListener('change', updateMatLabel);
-        detail.appendChild(matLabel);
-        detail.appendChild(document.createElement('br'));
-
-        var polLabel = document.createElement('span');
+        polItem.appendChild(policyBtn);
+        var polDetail = document.createElement('div');
+        polDetail.className = 'conv-detail';
         function updatePolLabel() {
             var p = getConversionPolicies();
             var pol = convActivePolicy(p);
-            polLabel.textContent = '方针：' + (pol.name || '?') + '（' + (pol.ratio || '10:1') + '，上限 ' + (p.activeLimit || 0) + ' 磅/日）　';
+            polDetail.textContent = '方针：' + (pol.name || '?') + '（' + (pol.ratio || '10:1') + '，上限 ' + (p.activeLimit || 0) + ' 磅/日）';
         }
         updatePolLabel();
         policyBtn.addEventListener('click', function() {
             openPolicyModal(function() { updatePolLabel(); });
         });
-        detail.appendChild(polLabel);
-        detail.appendChild(document.createElement('br'));
+        polItem.appendChild(polDetail);
+        convWrap.appendChild(polItem);
 
-        var qtySpan = document.createElement('span');
-        qtySpan.textContent = '转化数量：';
+        // ③ 进行生产（明细：转化数量）
+        var prodItem = document.createElement('div');
+        prodItem.className = 'conv-item';
+        var produceBtn = document.createElement('button');
+        produceBtn.type = 'button';
+        produceBtn.className = 'collect-btn';
+        produceBtn.textContent = '进行生产';
+        prodItem.appendChild(produceBtn);
+        var qtyDetail = document.createElement('div');
+        qtyDetail.className = 'conv-detail';
         var qtyInput = document.createElement('input');
         qtyInput.type = 'number';
         qtyInput.min = '1';
         qtyInput.value = '100';
         qtyInput.className = 'recipe-batch';
-        qtyInput.style.cssText = 'width:70px;padding:2px 4px;';
-        detail.appendChild(qtySpan);
-        detail.appendChild(qtyInput);
-        detail.appendChild(document.createTextNode(' 磅'));
-        convWrap.appendChild(detail);
+        qtyDetail.appendChild(document.createTextNode('转化数量：'));
+        qtyDetail.appendChild(qtyInput);
+        qtyDetail.appendChild(document.createTextNode(' 磅'));
+        prodItem.appendChild(qtyDetail);
+        convWrap.appendChild(prodItem);
+
+        if (blocked) { matSelect.disabled = true; policyBtn.disabled = true; produceBtn.disabled = true; }
 
         var result = document.createElement('div');
         result.className = 'conv-result';
-        result.style.cssText = 'margin:4px 0;font-size:0.85em;color:#8a5a00;min-height:16px;';
         convWrap.appendChild(result);
 
         produceBtn.addEventListener('click', function() {

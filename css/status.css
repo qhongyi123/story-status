@@ -553,12 +553,137 @@ body {
     background: var(--bg-quote);
     padding: 6px 10px;
 }
-.conv-btn-row select.collect-btn {
-    max-width: 150px;
-    padding: 4px 6px;
+.conv-item {
+    margin-top: 8px;
+}
+.conv-item:first-child {
+    margin-top: 0;
+}
+.conv-item select.collect-btn {
+    max-width: 100%;
+    padding: 4px 8px;
+}
+.conv-detail {
+    margin-top: 4px;
+    font-size: 0.78rem;
+    color: var(--color-text-dark);
+    line-height: 1.5;
+    min-height: 1.2em;
+}
+.conv-detail .recipe-batch {
+    width: 70px;
+    padding: 2px 4px;
 }
 .conv-result {
+    margin-top: 8px;
     min-height: 16px;
+    font-size: 0.8rem;
+    color: var(--color-accent);
+}
+
+/* ===== 转化比例方针面板 ===== */
+.conv-policy-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 15, 46, 0.85);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.conv-policy-panel {
+    background: var(--bg-content);
+    border: 2px solid var(--color-primary-dark);
+    border-radius: 8px;
+    box-shadow: 0 12px 35px rgba(0,0,0,0.8), inset 0 0 15px rgba(139, 90, 43, 0.3);
+    padding: 16px;
+    max-width: 560px;
+    width: 92%;
+    max-height: 85vh;
+    overflow-y: auto;
+    font-size: 13px;
+    color: var(--color-text-dark);
+    box-sizing: border-box;
+}
+.conv-policy-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed rgba(184,134,11,0.4);
+}
+.conv-policy-title {
+    font-weight: bold;
+    font-size: 15px;
+    color: var(--color-primary-dark);
+    font-family: var(--font-tech);
+    letter-spacing: 1px;
+}
+.conv-policy-close {
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+}
+.conv-policy-close:hover { color: var(--color-primary-dark); }
+.conv-policy-section-title {
+    font-weight: bold;
+    margin: 10px 0 4px;
+    color: var(--color-accent);
+    font-size: 0.8rem;
+}
+.conv-policy-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(184,134,11,0.35);
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 8px;
+    background: var(--bg-quote);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.conv-policy-row input[type="radio"] {
+    margin: 0;
+    accent-color: var(--color-primary-dark);
+}
+.conv-policy-row.selected {
+    border-color: var(--color-primary-dark);
+    background: rgba(212,175,55,0.16);
+    box-shadow: 0 0 6px rgba(212,175,55,0.4);
+}
+.conv-policy-input {
+    padding: 3px 6px;
+    font-size: 0.78rem;
+    font-family: var(--font-main);
+    color: var(--color-text-dark);
+    background: rgba(255,255,255,0.5);
+    border: 1px solid rgba(184,134,11,0.45);
+    border-radius: 4px;
+}
+.conv-policy-input:focus {
+    border-color: var(--color-primary-dark);
+    outline: none;
+}
+.conv-policy-name { font-weight: bold; width: 110px; }
+.conv-policy-ratio { width: 60px; }
+.conv-policy-limit { width: auto; }
+.conv-policy-desc { width: 100%; }
+.conv-policy-empty {
+    color: var(--color-accent);
+    padding: 10px 0;
+    font-style: italic;
+}
+.conv-policy-foot {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
 }
 
 /* ===== 船只货物与估价按钮 ===== */
