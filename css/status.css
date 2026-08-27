@@ -553,31 +553,74 @@ body {
     background: var(--bg-quote);
     padding: 6px 10px;
 }
-.conv-item {
-    margin-top: 8px;
+.conv-btn-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
 }
-.conv-item:first-child {
-    margin-top: 0;
-}
-.conv-item select.collect-btn {
-    max-width: 100%;
+.conv-btn-row .collect-btn {
+    flex: 1;
     padding: 4px 8px;
 }
-.conv-detail {
-    margin-top: 4px;
-    font-size: 0.78rem;
-    color: var(--color-text-dark);
-    line-height: 1.5;
-    min-height: 1.2em;
+.conv-detail-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
 }
-.conv-detail .recipe-batch {
+.conv-detail-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.76rem;
+    color: var(--color-text-dark);
+    line-height: 1.4;
+}
+.conv-detail-col select.collect-btn {
+    max-width: 100%;
+    padding: 3px 6px;
+    font-size: 0.72rem;
+    flex: 1;
+    min-width: 0;
+}
+.conv-detail-col .recipe-batch {
     width: 70px;
     padding: 2px 4px;
 }
+.conv-arrow {
+    color: var(--color-primary-dark);
+    font-weight: bold;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.conv-policy-label,
+.conv-prod-label {
+    flex-shrink: 0;
+    color: var(--color-primary-dark);
+    font-weight: bold;
+}
+.conv-policy-select {
+    font-family: var(--font-main);
+    font-size: 0.72rem;
+    color: var(--color-text-dark);
+    background: var(--bg-content);
+    border: 1px solid rgba(184,134,11,0.4);
+    border-radius: 4px;
+    padding: 3px 6px;
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+}
+.conv-unit {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
 .conv-result {
-    margin-top: 8px;
+    margin-top: 6px;
     min-height: 16px;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--color-accent);
 }
 
