@@ -1324,9 +1324,15 @@ body {
 .salary-row .recipe-batch {
     width: 60px;
 }
+.salary-row .collect-btn {
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    flex-shrink: 0;
+}
 .salary-unit {
     font-size: 0.75rem;
     color: var(--color-text-dark);
+    flex-shrink: 0;
 }
 
 /* ===== 故事日志面板（右侧滑出） ===== */

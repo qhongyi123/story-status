@@ -137,6 +137,9 @@ var CURRENT_CONTINENT = '南美';
 // 关系界面当前选中的子选项卡
 var CURRENT_REL_TAB = '管理';
 
+// 相关人员分组的展开状态（仅会话内记忆、不持久化；状态栏重新出现时恢复默认折叠）
+var REL_GROUP_OPEN = {};
+
 // 人员分配当前选中的资产 { type: 'estate'|'ship', name }
 var CURRENT_ASSIGN_TARGET = null;
 
@@ -295,6 +298,27 @@ function closeOverlays() {
     document.querySelectorAll('.person-card.person-selected').forEach(function(el) { el.classList.remove('person-selected'); });
 }
 
+// 归一化 story_log：兼容字符串 JSON / 数组 / 字符串元素，统一为 [{ time, text }]
+function normalizeStoryLog(raw) {
+    var arr = raw;
+    if (typeof raw === 'string') {
+        try { arr = JSON.parse(raw); } catch (e) { arr = []; }
+    }
+    if (!Array.isArray(arr)) arr = [];
+    return arr.map(function(e) {
+        if (typeof e === 'string') {
+            try {
+                var o = JSON.parse(e);
+                if (o && typeof o === 'object') return o;
+            } catch (er) {}
+            var idx = e.indexOf('：');
+            if (idx !== -1) return { time: e.slice(0, idx), text: e.slice(idx + 1) };
+            return { time: '未知日期', text: e };
+        }
+        return e || {};
+    });
+}
+
 // 修改角色薪资：写回 relationship.<名>.expense 并记录涨/降薪到 story_log
 function updatePersonSalary(name, person, input, data) {
     var old = extractCount(person.expense);
@@ -322,9 +346,11 @@ function appendStoryLog(data, text) {
     if (log.length > 30) log = log.slice(-30);
     data.story_log = log;
     if (typeof window.eventEmit === 'function') {
+        // 以 JSON 字符串整体写入，避免 ERA 对「对象数组」序列化出错
         var exists = !!(data.raw && data.raw.story_log);
-        if (exists) window.eventEmit('era:updateByObject', { story_log: log });
-        else window.eventEmit('era:insertByObject', { story_log: log });
+        var payload = { story_log: JSON.stringify(log) };
+        if (exists) window.eventEmit('era:updateByObject', payload);
+        else window.eventEmit('era:insertByObject', payload);
     }
     syncLocalRender();
     var panel = document.getElementById('story-log-panel');
@@ -1577,14 +1603,20 @@ function buildPersonCard(name, person, employment, data) {
     salaryInput.value = extractCount(person.expense);
     salaryInput.className = 'recipe-batch';
     salaryInput.addEventListener('click', function(e) { e.stopPropagation(); });
-    salaryInput.addEventListener('change', function() {
-        updatePersonSalary(name, person, salaryInput, data);
-    });
     salaryRow.appendChild(salaryInput);
     var salaryUnit = document.createElement('span');
     salaryUnit.className = 'salary-unit';
     salaryUnit.textContent = '银币/月';
     salaryRow.appendChild(salaryUnit);
+    var salaryConfirm = document.createElement('button');
+    salaryConfirm.type = 'button';
+    salaryConfirm.className = 'collect-btn';
+    salaryConfirm.textContent = '确认';
+    salaryConfirm.addEventListener('click', function(e) {
+        e.stopPropagation();
+        updatePersonSalary(name, person, salaryInput, data);
+    });
+    salaryRow.appendChild(salaryConfirm);
     card.appendChild(salaryRow);
 
     var a = employment && employment[name];
@@ -2135,7 +2167,8 @@ function renderRelatedPersonsTab(data, content) {
         nameSpan.textContent = tag;
         var arrow = document.createElement('span');
         arrow.className = 'rel-arrow';
-        arrow.textContent = '▸';
+        var isOpen = REL_GROUP_OPEN[tag] === true;
+        arrow.textContent = isOpen ? '▾' : '▸';
         nameSpan.appendChild(arrow);
         var countSpan = document.createElement('span');
         countSpan.className = 'rel-count';
@@ -2144,12 +2177,13 @@ function renderRelatedPersonsTab(data, content) {
         header.appendChild(countSpan);
         var body = document.createElement('div');
         body.className = 'rel-group-body';
-        body.style.display = 'none';
+        if (!isOpen) body.style.display = 'none';
         names.forEach(function(n) { body.appendChild(buildPersonCard(n, rel[n] || {}, employment, data)); });
         header.addEventListener('click', function() {
             var collapsed = body.style.display === 'none';
             body.style.display = collapsed ? '' : 'none';
             arrow.textContent = collapsed ? '▾' : '▸';
+            REL_GROUP_OPEN[tag] = collapsed;
         });
         grp.appendChild(header);
         grp.appendChild(body);
@@ -2667,6 +2701,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 30);
                 } else {
                     App.elements.statusCard.classList.remove('global-collapsed');
+                    // 展开后强制重排，确保侧边书签回到底部正确位置、不覆盖主内容
+                    setTimeout(function() {
+                        document.body.offsetHeight;
+                    }, 30);
                 }
             }
         },
@@ -3359,7 +3397,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 p.warehouse = data.warehouse || {};
                 p.payroll = data.payroll || {};
                 p.region = (data['背景信息'] && data['背景信息'].地区) || {};
-                p.story_log = data.story_log || [];
+                p.story_log = normalizeStoryLog(data.story_log);
 
                 var currentStageKey = data.write ? (data.write.stage || data.stage || '\u9636\u6BB50') : '\u9636\u6BB50';
                 var nextStageKey = data.write ? data.write.next_stage : '';
