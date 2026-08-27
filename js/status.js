@@ -295,6 +295,87 @@ function closeOverlays() {
     document.querySelectorAll('.person-card.person-selected').forEach(function(el) { el.classList.remove('person-selected'); });
 }
 
+// 修改角色薪资：写回 relationship.<名>.expense 并记录涨/降薪到 story_log
+function updatePersonSalary(name, person, input, data) {
+    var old = extractCount(person.expense);
+    var next = Math.floor(parseFloat(input.value));
+    if (isNaN(next) || next < 0) { input.value = old; return; }
+    if (next === old) return;
+    if (typeof window.eventEmit !== 'function') { alert('无法接入 ERA 指令通道。'); input.value = old; return; }
+    var hadExpense = person.expense !== undefined && person.expense !== null && String(person.expense).trim() !== '';
+    var nextExpense = next + ' 银币/月';
+    person.expense = nextExpense;
+    var payload = {};
+    payload[name] = { expense: nextExpense };
+    if (hadExpense) window.eventEmit('era:updateByObject', { relationship: payload });
+    else window.eventEmit('era:insertByObject', { relationship: payload });
+    var verb = next > old ? '涨薪' : '降薪';
+    var text = verb + '：' + name + ' 的月薪由 ' + old + ' 银币' + (next > old ? '涨至' : '降至') + ' ' + next + ' 银币';
+    appendStoryLog(data, text);
+}
+
+// 追加一条故事日志（写入 story_log 变量，保留最近 30 条，并刷新已打开的日志面板）
+function appendStoryLog(data, text) {
+    var todayISO = worldDateToISO(data.world && data.world.date) || '未知日期';
+    var log = (data.story_log || []).slice();
+    log.push({ time: todayISO, text: text });
+    if (log.length > 30) log = log.slice(-30);
+    data.story_log = log;
+    if (typeof window.eventEmit === 'function') {
+        var exists = !!(data.raw && data.raw.story_log);
+        if (exists) window.eventEmit('era:updateByObject', { story_log: log });
+        else window.eventEmit('era:insertByObject', { story_log: log });
+    }
+    syncLocalRender();
+    var panel = document.getElementById('story-log-panel');
+    if (panel && panel.classList.contains('open')) renderStoryLog(log);
+}
+
+// 渲染故事日志面板：按日期分组（最新在上），日期作为分隔标题
+function renderStoryLog(log) {
+    var content = document.getElementById('story-log-content');
+    if (!content) return;
+    content.innerHTML = '';
+    if (!log || !log.length) {
+        content.appendChild(buildEmptyHint('暂无故事日志...'));
+        return;
+    }
+    var items = log.slice().reverse();
+    var groups = {};
+    items.forEach(function(e) {
+        var day = e.time || '未知日期';
+        if (!groups[day]) groups[day] = [];
+        groups[day].push(e);
+    });
+    Object.keys(groups).forEach(function(day) {
+        var dayTitle = document.createElement('div');
+        dayTitle.className = 'story-log-date';
+        dayTitle.textContent = day;
+        content.appendChild(dayTitle);
+        groups[day].forEach(function(e) {
+            var row = document.createElement('div');
+            row.className = 'story-log-item';
+            row.textContent = e.text;
+            content.appendChild(row);
+        });
+    });
+}
+
+// 打开故事日志面板：先读取最新变量，再渲染日志
+function openStoryLogPanel() {
+    var panel = document.getElementById('story-log-panel');
+    if (panel) panel.classList.add('open');
+    var app = getStatusApp();
+    if (app && app.parsers && app.parsers.getVariableData) {
+        refreshVariables(function() {
+            var log = (app.state.parsedData && app.state.parsedData.story_log) || [];
+            renderStoryLog(log);
+        });
+    } else {
+        renderStoryLog((app && app.state && app.state.parsedData && app.state.parsedData.story_log) || []);
+    }
+}
+
 // 船只选项卡类别（与 uid27 船只 type 枚举一致，按 uid80 船只参考档位排序）
 var SHIP_TYPES = ['小艇', '渔船', '双桅帆船', '商船', '盖伦船', '大型商船', '护卫舰', '战列舰'];
 
@@ -1461,15 +1542,14 @@ function genderSymbol(gender) {
     return gender || '';
 }
 
-// 角色统一字段（location / expense，性别符号显示在姓名行右侧，标签作为分组标题）
+// 角色统一字段（location，性别符号显示在姓名行右侧，薪资改为可编辑项单独渲染）
 function personRows(person) {
     return [
-        { label: '位置', value: person.location },
-        { label: '薪资', value: person.expense }
+        { label: '位置', value: person.location }
     ];
 }
 
-// 只读人物卡：姓名行右侧显示性别符号 + 字段 + 当前就职（指令模式下点击选中为目标角色）
+// 只读人物卡：姓名行右侧显示性别符号 + 字段 + 薪资编辑 + 当前就职（指令模式下点击选中为目标角色）
 function buildPersonCard(name, person, employment, data) {
     var card = buildEntityCard(name, personRows(person));
     card.classList.add('person-card');
@@ -1483,6 +1563,30 @@ function buildPersonCard(name, person, employment, data) {
         sym.textContent = genderSymbol(person.gender);
         nameEl.appendChild(sym);
     }
+
+    // 薪资编辑：修改后写回 relationship.expense 并记录涨/降薪日志
+    var salaryRow = document.createElement('div');
+    salaryRow.className = 'salary-row';
+    var salaryLabel = document.createElement('span');
+    salaryLabel.className = 'salary-label';
+    salaryLabel.textContent = '薪资：';
+    salaryRow.appendChild(salaryLabel);
+    var salaryInput = document.createElement('input');
+    salaryInput.type = 'number';
+    salaryInput.min = '0';
+    salaryInput.value = extractCount(person.expense);
+    salaryInput.className = 'recipe-batch';
+    salaryInput.addEventListener('click', function(e) { e.stopPropagation(); });
+    salaryInput.addEventListener('change', function() {
+        updatePersonSalary(name, person, salaryInput, data);
+    });
+    salaryRow.appendChild(salaryInput);
+    var salaryUnit = document.createElement('span');
+    salaryUnit.className = 'salary-unit';
+    salaryUnit.textContent = '银币/月';
+    salaryRow.appendChild(salaryUnit);
+    card.appendChild(salaryRow);
+
     var a = employment && employment[name];
     var line = document.createElement('div');
     line.className = 'assign-row';
@@ -2031,7 +2135,7 @@ function renderRelatedPersonsTab(data, content) {
         nameSpan.textContent = tag;
         var arrow = document.createElement('span');
         arrow.className = 'rel-arrow';
-        arrow.textContent = '▾';
+        arrow.textContent = '▸';
         nameSpan.appendChild(arrow);
         var countSpan = document.createElement('span');
         countSpan.className = 'rel-count';
@@ -2040,6 +2144,7 @@ function renderRelatedPersonsTab(data, content) {
         header.appendChild(countSpan);
         var body = document.createElement('div');
         body.className = 'rel-group-body';
+        body.style.display = 'none';
         names.forEach(function(n) { body.appendChild(buildPersonCard(n, rel[n] || {}, employment, data)); });
         header.addEventListener('click', function() {
             var collapsed = body.style.display === 'none';
@@ -3215,7 +3320,7 @@ document.addEventListener('DOMContentLoaded', function() {
             cleanStr: function(str) { return typeof str === 'string' ? str.replace(/__DOT__/g, '.').replace(/__SPACE__/g, ' ') : str; },
 
             parseData: function(data) {
-                var p = { user: {}, world: {}, stageData: null, currentStageData: null, mode: 'script', worldview: 'medieval', estate: {}, ships: {}, relationship: {}, region: {}, warehouse: {}, raw: null };
+                var p = { user: {}, world: {}, stageData: null, currentStageData: null, mode: 'script', worldview: 'medieval', estate: {}, ships: {}, relationship: {}, region: {}, warehouse: {}, story_log: [], raw: null };
                 if (!data) return p;
                 var clean = this.cleanStr;
 
@@ -3254,6 +3359,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 p.warehouse = data.warehouse || {};
                 p.payroll = data.payroll || {};
                 p.region = (data['背景信息'] && data['背景信息'].地区) || {};
+                p.story_log = data.story_log || [];
 
                 var currentStageKey = data.write ? (data.write.stage || data.stage || '\u9636\u6BB50') : '\u9636\u6BB50';
                 var nextStageKey = data.write ? data.write.next_stage : '';
@@ -3330,6 +3436,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
             pageTurnBtn.addEventListener('click', App.actions.turnPage);
             App.elements.pagePrevBtn.addEventListener('click', App.actions.turnPageBack);
+
+            // 故事日志面板：侧栏按钮切换、关闭按钮与背景点击关闭
+            var storyLogBtn = document.getElementById('story-log-bookmark');
+            if (storyLogBtn) {
+                storyLogBtn.addEventListener('click', function() {
+                    var panel = document.getElementById('story-log-panel');
+                    if (!panel) return;
+                    if (panel.classList.contains('open')) panel.classList.remove('open');
+                    else openStoryLogPanel();
+                });
+            }
+            var storyLogCloseBtn = document.getElementById('story-log-close-btn');
+            if (storyLogCloseBtn) {
+                storyLogCloseBtn.addEventListener('click', function() {
+                    var panel = document.getElementById('story-log-panel');
+                    if (panel) panel.classList.remove('open');
+                });
+            }
+            var storyLogBackdrop = document.getElementById('story-log-backdrop');
+            if (storyLogBackdrop) {
+                storyLogBackdrop.addEventListener('click', function() {
+                    var panel = document.getElementById('story-log-panel');
+                    if (panel) panel.classList.remove('open');
+                });
+            }
 
             // 控制面板「置于末页」勾选项：默认第二页，勾选后移到末页
             var controlOnLastPageCb = document.getElementById('control-on-last-page');

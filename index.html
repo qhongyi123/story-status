@@ -2,7 +2,6 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<base href="https://qhongyi123.github.io/story-status/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>角色状态面板 - Bookmark Pagination</title>
 <link rel="stylesheet" href="css/status.css">
@@ -100,6 +99,7 @@
             <div id="settings-toggle" class="bookmark left-bookmark" title="打开设置面板">面板配置</div>
         </div>
         <div class="bookmark-stack bookmark-stack-right">
+            <div id="story-log-bookmark" class="bookmark right-bookmark" title="故事日志">故事日志</div>
             <div id="page-prev-bookmark" class="bookmark right-bookmark" title="上一页">上一页</div>
             <div id="page-turn-bookmark" class="bookmark right-bookmark" title="翻页浏览">下一页</div>
         </div>
@@ -154,6 +154,17 @@
                 <button id="detail-delete-btn" class="helper-btn" style="background: var(--color-delete); border-color: #500014; color: white; padding: 6px 18px; font-size: 0.85rem;">删除物品</button>
                 <button id="detail-close-btn" class="helper-btn cancel" style="padding: 6px 18px; font-size: 0.85rem;">退出</button>
             </div>
+        </div>
+    </div>
+
+    <div id="story-log-panel" class="story-log-panel">
+        <div id="story-log-backdrop" class="story-log-backdrop"></div>
+        <div class="story-log-panel-card">
+            <div class="story-log-panel-head">
+                <span class="story-log-panel-title">故事日志</span>
+                <button id="story-log-close-btn" class="story-log-close" title="关闭">✕</button>
+            </div>
+            <div id="story-log-content" class="story-log-content"></div>
         </div>
     </div>
 
