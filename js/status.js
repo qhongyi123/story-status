@@ -262,6 +262,39 @@ function refreshVariables(done) {
     }).catch(function() { if (done) done(); });
 }
 
+// 刷新所有转化方针下拉（方针编辑面板关闭后调用）
+function refreshPolicySelects() {
+    var p = getConversionPolicies();
+    document.querySelectorAll('.conv-policy-select').forEach(function(sel) {
+        sel.innerHTML = '';
+        p.defaults.forEach(function(policy, i) {
+            var o = document.createElement('option');
+            o.value = 'd' + i; o.textContent = policy.name;
+            sel.appendChild(o);
+        });
+        p.customs.forEach(function(policy, i) {
+            var o = document.createElement('option');
+            o.value = 'c' + i; o.textContent = policy.name;
+            sel.appendChild(o);
+        });
+        sel.value = p.activeKey;
+    });
+}
+
+// 关闭指令/就职弹窗并清除选中状态（切换选项卡或翻页时调用）
+function closeOverlays() {
+    if (ASSIGN_POPOVER) {
+        ASSIGN_POPOVER.remove();
+        ASSIGN_POPOVER = null;
+    }
+    closeCommandPanel();
+    CURRENT_ASSIGN_TARGET = null;
+    var sel = document.querySelector('.asset-tile.selected');
+    if (sel) sel.classList.remove('selected');
+    SELECTED_PERSON = null;
+    document.querySelectorAll('.person-card.person-selected').forEach(function(el) { el.classList.remove('person-selected'); });
+}
+
 // 船只选项卡类别（与 uid27 船只 type 枚举一致，按 uid80 船只参考档位排序）
 var SHIP_TYPES = ['小艇', '渔船', '双桅帆船', '商船', '盖伦船', '大型商船', '护卫舰', '战列舰'];
 
@@ -1067,7 +1100,7 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         card.appendChild(hwrap);
     }
 
-    // 生产转化（手工业且有产品）：生产方式 / 转化方针 / 生产（统一行按钮 + 正下方明细）
+    // 生产转化（手工业且有产品）：生产方式 / 转化方针 / 开始生产（顶部标签 + 正下方明细）
     if (estate.type === '手工业' && estate.product) {
         var productName = Array.isArray(estate.product) ? estate.product[0] : estate.product;
         var regionItems = Object.keys((warehouse && warehouse[region]) || {}).filter(function(n) { return (warehouse[region][n] || 0) > 0; });
@@ -1075,33 +1108,28 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         var convWrap = document.createElement('div');
         convWrap.className = 'conv-block';
 
-        // 统一行三按钮：生产方式（不可点） / 转化方针（可点，打开方针面板） / 生产（可点，按数量框执行转化）
+        // 顶部三个步骤标签（均不可点、正常文本显示）：生产方式 / 转化方针 / 开始生产
         var btnRow = document.createElement('div');
         btnRow.className = 'conv-btn-row';
-        var matBtn = document.createElement('button');
-        matBtn.type = 'button';
-        matBtn.className = 'collect-btn';
-        matBtn.textContent = '生产方式';
-        matBtn.disabled = true;
-        var policyBtn = document.createElement('button');
-        policyBtn.type = 'button';
-        policyBtn.className = 'collect-btn';
-        policyBtn.textContent = '转化方针';
-        var prodBtn = document.createElement('button');
-        prodBtn.type = 'button';
-        prodBtn.className = 'collect-btn';
-        prodBtn.textContent = '生产';
-        if (blocked) { policyBtn.disabled = true; prodBtn.disabled = true; }
-        btnRow.appendChild(matBtn);
-        btnRow.appendChild(policyBtn);
-        btnRow.appendChild(prodBtn);
+        var matLabel = document.createElement('span');
+        matLabel.className = 'conv-step-label';
+        matLabel.textContent = '生产方式';
+        var polLabel = document.createElement('span');
+        polLabel.className = 'conv-step-label';
+        polLabel.textContent = '转化方针';
+        var startLabel = document.createElement('span');
+        startLabel.className = 'conv-step-label';
+        startLabel.textContent = '开始生产';
+        btnRow.appendChild(matLabel);
+        btnRow.appendChild(polLabel);
+        btnRow.appendChild(startLabel);
         convWrap.appendChild(btnRow);
 
-        // 三按钮正下方的明细行（各列对应各按钮）
+        // 三步骤正下方的明细行（各列对应各步骤）
         var detailRow = document.createElement('div');
         detailRow.className = 'conv-detail-row';
 
-        // ① 生产方式下方：原料下拉（点击出现本大洲仓库内容）→ 产物
+        // ① 生产方式：原料下拉（点击出现本大洲仓库内容）→ 产物
         var matCol = document.createElement('div');
         matCol.className = 'conv-detail-col';
         var matSelect = document.createElement('select');
@@ -1127,7 +1155,7 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         matCol.appendChild(arrow);
         detailRow.appendChild(matCol);
 
-        // ② 转化方针下方：方针：下拉（仅显示方针名）
+        // ② 转化方针：方针：下拉（仅显示方针名）
         var polCol = document.createElement('div');
         polCol.className = 'conv-detail-col';
         var polLabel = document.createElement('span');
@@ -1137,7 +1165,7 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         var polSelect = document.createElement('select');
         polSelect.className = 'conv-policy-select';
         polSelect.title = '选择转化方针';
-        function fillPolicySelect() {
+        function fillPolicySelectLocal() {
             polSelect.innerHTML = '';
             var p = getConversionPolicies();
             p.defaults.forEach(function(policy, i) {
@@ -1152,7 +1180,7 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
             });
             polSelect.value = p.activeKey;
         }
-        fillPolicySelect();
+        fillPolicySelectLocal();
         polSelect.addEventListener('change', function() {
             var p = getConversionPolicies();
             var pol = convPolicyByIdx(p, polSelect.value);
@@ -1164,13 +1192,15 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         polCol.appendChild(polSelect);
         detailRow.appendChild(polCol);
 
-        // ③ 生产下方：生产 [数量框] 磅 产物名
+        // ③ 开始生产：生产（可点）[数量框] 磅 产物名
         var prodCol = document.createElement('div');
         prodCol.className = 'conv-detail-col';
-        var prodLabel = document.createElement('span');
-        prodLabel.className = 'conv-prod-label';
-        prodLabel.textContent = '生产';
-        prodCol.appendChild(prodLabel);
+        var prodBtn = document.createElement('button');
+        prodBtn.type = 'button';
+        prodBtn.className = 'collect-btn';
+        prodBtn.textContent = '生产';
+        if (blocked) prodBtn.disabled = true;
+        prodCol.appendChild(prodBtn);
         var qtyInput = document.createElement('input');
         qtyInput.type = 'number';
         qtyInput.min = '1';
@@ -1189,11 +1219,6 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         var result = document.createElement('div');
         result.className = 'conv-result';
         convWrap.appendChild(result);
-
-        // 转化方针按钮：打开方针面板，关闭后刷新方针下拉
-        policyBtn.addEventListener('click', function() {
-            openPolicyModal(function() { fillPolicySelect(); });
-        });
 
         // 生产按钮：按数量框数量执行转化（与收款/收获/出售一致的无则 insert、有则 update 写回）
         prodBtn.addEventListener('click', function() {
@@ -1926,6 +1951,7 @@ function renderManagementTab(data, content, rerender) {
             cb.checked = GROUP_BY_REGION;
             cb.addEventListener('change', function() {
                 GROUP_BY_REGION = cb.checked;
+                closeOverlays();
                 rerender();
             });
             regionToggle.appendChild(cb);
@@ -1966,7 +1992,7 @@ function renderManagementTab(data, content, rerender) {
         if (!btn) return;
         if (CURRENT_BOARD_TAB === btn.dataset.tab) return;
         CURRENT_BOARD_TAB = btn.dataset.tab;
-        CURRENT_ASSIGN_TARGET = null;
+        closeOverlays();
         rerender();
     });
 
@@ -2255,6 +2281,16 @@ var SECTION_RENDERERS = {
             });
             section.appendChild(tabBar);
 
+            // 转化方针编辑与命名（手工业转化方针的编辑入口）
+            var policyEditBtn = document.createElement('button');
+            policyEditBtn.type = 'button';
+            policyEditBtn.className = 'collect-btn';
+            policyEditBtn.textContent = '转化方针编辑与命名';
+            policyEditBtn.addEventListener('click', function() {
+                openPolicyModal(function() { refreshPolicySelects(); });
+            });
+            section.appendChild(policyEditBtn);
+
             // 内容区
             var content = document.createElement('div');
             content.className = 'entity-tab-content';
@@ -2279,6 +2315,7 @@ var SECTION_RENDERERS = {
                 if (!btn) return;
                 if (CURRENT_CONTINENT === btn.dataset.continent) return;
                 CURRENT_CONTINENT = btn.dataset.continent;
+                closeOverlays();
                 render();
             });
 
@@ -2290,6 +2327,7 @@ var SECTION_RENDERERS = {
                 tabBar.querySelectorAll('.entity-tab').forEach(function(b) {
                     b.classList.toggle('active', b === btn);
                 });
+                closeOverlays();
                 renderContent();
             });
         }
@@ -2372,6 +2410,7 @@ var SECTION_RENDERERS = {
             tabBar.querySelectorAll('.entity-tab').forEach(function(b) {
                 b.classList.toggle('active', b === btn);
             });
+            closeOverlays();
             renderContent();
         });
 
@@ -2431,6 +2470,7 @@ var SECTION_RENDERERS = {
                 if (!btn) return;
                 if (CURRENT_REL_TAB === btn.dataset.tab) return;
                 CURRENT_REL_TAB = btn.dataset.tab;
+                closeOverlays();
                 render();
             });
         }
@@ -2972,6 +3012,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         actions: {
             turnPage: function() {
+                closeOverlays();
                 var actives = App.state.activePages || [];
                 if (actives.length <= 1) return;
                 var current = null;
@@ -2982,6 +3023,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             turnPageBack: function() {
+                closeOverlays();
                 var actives = App.state.activePages || [];
                 if (actives.length <= 1) return;
                 var current = null;
