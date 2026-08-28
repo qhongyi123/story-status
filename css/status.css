@@ -1272,6 +1272,7 @@ body {
     width: 320px;
     max-height: 43vh;
     overflow-y: auto;
+    box-sizing: border-box;
     background: linear-gradient(180deg, rgba(44,27,77,0.98), rgba(21,8,36,0.98));
     border: 1px solid var(--color-primary-dark);
     border-radius: 8px;
@@ -1331,6 +1332,7 @@ body {
     display: block;
     width: 100%;
     text-align: left;
+    box-sizing: border-box;
     margin-bottom: 3px;
     padding: 3px 8px;
     font-size: 0.78rem;
