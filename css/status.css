@@ -149,9 +149,8 @@ body {
 
 .page {
     display: none;
-    height: auto;
-    min-height: var(--panel-height);
-    overflow: visible;
+    height: var(--panel-height);
+    overflow-y: auto;
     animation: fadeIn 0.4s ease forwards;
 }
 .page.active {
@@ -247,7 +246,7 @@ body {
     display: inline-block; background: rgba(212,175,55,0.1); border: 1px dashed var(--color-primary-dark); padding: 4px 10px; border-radius: 4px; font-size: 0.85rem; color: var(--color-primary-dark); font-weight:bold; margin-right: 0.5rem; margin-bottom: 0.5rem;
 }
 
-.inventory-wrapper { max-height: none; overflow: visible; }
+.inventory-wrapper { max-height: 800px; overflow-y: auto; overflow-x: hidden; }
 .inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; padding: 5px; }
 .inventory-item {
     background: linear-gradient(180deg, var(--color-paper-strong) 0%, rgba(212, 175, 55, 0.05) 100%);
