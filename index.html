@@ -2,7 +2,6 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<base href="https://qhongyi123.github.io/story-status/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>角色状态面板 - Bookmark Pagination</title>
 <link rel="stylesheet" href="css/status.css">
@@ -10,15 +9,13 @@
 <body>
     <div id="status-card-wrapper" class="status-card">
 
-        <div id="collapse-panel-btn" class="collapse-badge" title="收起或展开整个状态面板">收起面板</div>
+        <!-- 世界信息条（持久悬浮于右上角，所有界面可见，弹出层不挤压下方内容） -->
+        <div id="world-info" class="wib">
+            <div class="wib-top" id="wib-top" title="点击展开 / 收起"></div>
+            <div class="wib-expand" id="wib-expand"></div>
+        </div>
 
         <div class="card-content" id="ui-structure">
-
-            <!-- 世界信息条（持久悬浮于右上角，所有界面可见，弹出层不挤压下方内容） -->
-            <div id="world-info" class="wib">
-                <div class="wib-top" id="wib-top" title="点击展开 / 收起"></div>
-                <div class="wib-expand" id="wib-expand"></div>
-            </div>
 
             <!-- 第 1 页：个人信息（头部 + 心理 + 周围环境 + 物品栏） -->
             <div class="page active" id="page-1">

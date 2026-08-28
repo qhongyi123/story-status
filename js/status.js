@@ -104,16 +104,10 @@ function formatTime(t) {
     return s;
 }
 
-function formatDatetime(world) {
-    var parts = [];
-    if (world && world.date) parts.push(world.date);
-    if (world && world.position) parts.push(world.position);
-    return parts.length ? parts.join(' · ') : '';
-}
-
 // 世界信息条的可切换项（顺序即默认展示顺序）
 var WIB_ITEMS = [
-    { key: 'datetime', label: '日期·位置' },
+    { key: 'date',     label: '日期' },
+    { key: 'position', label: '位置' },
     { key: 'time',     label: '时间' },
     { key: 'wealth',   label: '财富' }
 ];
@@ -2709,7 +2703,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 isPanelCollapsed: false,
                 isStageDetailsExpanded: false,
                 isTaskPanelCollapsed: false,
-                worldInfoTop: 'datetime',
+                worldInfoTop: 'date',
                 controlPanelOnLastPage: false
             },
             getStorageKey: function() { return 'state_uiconfig_' + App.state.uniqueId; },
@@ -2943,7 +2937,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!hasAny) return;
 
                 App.state.worldInfoValues = {
-                    datetime: formatDatetime(world),
+                    date: world.date || '',
+                    position: world.position || '',
                     time: formatTime(world.time),
                     wealth: formatWealth(gold, wealth)
                 };
@@ -2955,7 +2950,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var top = App.elements.containers.worldInfoTop;
                 var expand = App.elements.containers.worldInfoExpand;
                 if (!top || !expand) return;
-                var topKey = App.uiStateConfig.data.worldInfoTop || 'datetime';
+                var topKey = App.uiStateConfig.data.worldInfoTop || 'date';
                 var values = App.state.worldInfoValues || {};
 
                 var topItem = WIB_ITEMS[0];
@@ -3031,13 +3026,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // 由模式维度决定是否显示剧情面板（自由模式隐藏）
                 var view = getStatusView(App.state.parsedData.mode, App.state.parsedData.worldview);
+                var headerBtn = App.elements.containers.headerBtnArea;
+                var userHeader = App.elements.containers.userHeader;
+                headerBtn.innerHTML = '';
+                headerBtn.style.display = 'none';
+                userHeader.classList.remove('no-border');
                 if (!view.showStage) {
                     toggleArea.innerHTML = '';
                     toggleArea.style.display = 'none';
                     taskPanel.style.display = 'none';
-                    App.elements.containers.headerBtnArea.innerHTML = '';
-                    App.elements.containers.headerBtnArea.style.display = 'none';
-                    App.elements.containers.userHeader.classList.remove('no-border');
                     return;
                 }
                 // 剧情模式：恢复显示
@@ -3046,34 +3043,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 var nextStage = App.state.parsedData.stageData;
                 var currentStage = App.state.parsedData.currentStageData;
-                var isCollapsed = App.uiStateConfig.data.isTaskPanelCollapsed;
                 var isEditing = App.state.isEditMode;
                 var editableAttr = isEditing ? ' contenteditable="true"' : '';
 
-                // 渲染折叠切换按钮
-                var headerBtn = App.elements.containers.headerBtnArea;
-                var userHeader = App.elements.containers.userHeader;
+                // 编辑 / 保存按钮（靠右显示，与右上角展示栏错开）
                 if (nextStage || currentStage) {
-                    if (isCollapsed) {
-                        // 折叠状态：按钮移到用户信息栏右侧
-                        headerBtn.innerHTML = '<span id="stage-collapse-toggle-btn" class="square-btn">\u5C55\u5F00<br>\u5267\u60C5</span>';
-                        headerBtn.style.display = '';
-                        toggleArea.innerHTML = '';
-                        userHeader.classList.add('no-border');
-                    } else {
-                        // 展开状态：按钮在原位（虚线下方）
-                        headerBtn.innerHTML = '';
-                        headerBtn.style.display = 'none';
-                        toggleArea.innerHTML = '' +
-                            (isEditing ? '<span id="stage-save-btn" class="stage-action-btn stage-save-btn">\uD83D\uDCBE \u4FDD\u5B58</span>' : '') +
-                            '<span id="stage-edit-btn" class="stage-action-btn stage-edit-btn' + (isEditing ? ' active' : '') + '">' + (isEditing ? '\u2716 \u7F16\u8F91\u4E2D' : '\u270F\uFE0F \u7F16\u8F91') + '</span>' +
-                            '<span id="stage-collapse-toggle-btn">\u25B5 \u6536\u8D77\u5267\u60C5</span>';
-                        userHeader.classList.remove('no-border');
-                    }
-                    var collapseToggleBtn = document.getElementById('stage-collapse-toggle-btn');
-                    if (collapseToggleBtn) {
-                        collapseToggleBtn.addEventListener('click', function() { App.uiStateConfig.toggleTaskPanel(); });
-                    }
+                    toggleArea.innerHTML = '' +
+                        (isEditing ? '<span id="stage-save-btn" class="stage-action-btn stage-save-btn">\uD83D\uDCBE \u4FDD\u5B58</span>' : '') +
+                        '<span id="stage-edit-btn" class="stage-action-btn stage-edit-btn' + (isEditing ? ' active' : '') + '">' + (isEditing ? '\u2716 \u7F16\u8F91\u4E2D' : '\u270F\uFE0F \u7F16\u8F91') + '</span>';
                     var editBtn = document.getElementById('stage-edit-btn');
                     if (editBtn) {
                         editBtn.addEventListener('click', function() { App.actions.toggleEditMode(); });
@@ -3084,21 +3061,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } else {
                     toggleArea.innerHTML = '';
-                    headerBtn.innerHTML = '';
-                    headerBtn.style.display = 'none';
-                    userHeader.classList.remove('no-border');
                 }
 
                 // 无数据时
                 if (!nextStage && !currentStage) {
-                    if (!isCollapsed) {
-                        taskPanel.innerHTML = '<div class="task-container"><div class="task-header">\u2726 \u5267\u60C5\u72B6\u6001 \u2726</div><div style="text-align: center; color: var(--color-accent); padding: 1.5rem; font-style:italic;">暂未开始剧情，若你正在进行自定义生成，可以在正则中暂时关闭状态栏显示</div></div>';
-                    }
-                    return;
-                }
-
-                // 折叠状态：隐藏剧情内容
-                if (isCollapsed) {
+                    taskPanel.innerHTML = '<div class="task-container"><div class="task-header">\u2726 \u5267\u60C5\u72B6\u6001 \u2726</div><div style="text-align: center; color: var(--color-accent); padding: 1.5rem; font-style:italic;">暂未开始剧情，若你正在进行自定义生成，可以在正则中暂时关闭状态栏显示</div></div>';
                     return;
                 }
 
@@ -3534,10 +3501,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 toggleModal(settings.panel);
             });
 
-            collapsePanelBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                App.uiStateConfig.togglePanel();
-            });
+            if (collapsePanelBtn) {
+                collapsePanelBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    App.uiStateConfig.togglePanel();
+                });
+            }
 
             statusCard.addEventListener('click', function() {
                 if (App.uiStateConfig.data.isPanelCollapsed) {
