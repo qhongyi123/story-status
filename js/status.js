@@ -1218,7 +1218,7 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         card.appendChild(hwrap);
     }
 
-    // 生产转化（手工业且有产品）：生产方式 / 转化方针 / 开始生产（顶部标签 + 正下方明细）
+    // 生产转化（手工业且有产品）：生产方式 / 转化方针 / 开始生产（每步标签 + 正下方明细）
     if (estate.type === '手工业' && estate.product) {
         var productName = Array.isArray(estate.product) ? estate.product[0] : estate.product;
         var regionItems = Object.keys((warehouse && warehouse[region]) || {}).filter(function(n) { return (warehouse[region][n] || 0) > 0; });
@@ -1226,28 +1226,13 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         var convWrap = document.createElement('div');
         convWrap.className = 'conv-block';
 
-        // 顶部三个步骤标签（均不可点、正常文本显示）：生产方式 / 转化方针 / 开始生产
-        var btnRow = document.createElement('div');
-        btnRow.className = 'conv-btn-row';
-        var matLabel = document.createElement('span');
+        // ① 生产方式：原料下拉（点击出现本大洲仓库内容）→ 产物
+        var step1 = document.createElement('div');
+        step1.className = 'conv-step';
+        var matLabel = document.createElement('div');
         matLabel.className = 'conv-step-label';
         matLabel.textContent = '生产方式';
-        var polLabel = document.createElement('span');
-        polLabel.className = 'conv-step-label';
-        polLabel.textContent = '转化方针';
-        var startLabel = document.createElement('span');
-        startLabel.className = 'conv-step-label';
-        startLabel.textContent = '开始生产';
-        btnRow.appendChild(matLabel);
-        btnRow.appendChild(polLabel);
-        btnRow.appendChild(startLabel);
-        convWrap.appendChild(btnRow);
-
-        // 三步骤正下方的明细行（各列对应各步骤）
-        var detailRow = document.createElement('div');
-        detailRow.className = 'conv-detail-row';
-
-        // ① 生产方式：原料下拉（点击出现本大洲仓库内容）→ 产物
+        step1.appendChild(matLabel);
         var matCol = document.createElement('div');
         matCol.className = 'conv-detail-col';
         var matSelect = document.createElement('select');
@@ -1271,15 +1256,21 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         arrow.className = 'conv-arrow';
         arrow.textContent = '→ ' + productName;
         matCol.appendChild(arrow);
-        detailRow.appendChild(matCol);
+        step1.appendChild(matCol);
 
         // ② 转化方针：方针：下拉（仅显示方针名）
+        var step2 = document.createElement('div');
+        step2.className = 'conv-step';
+        var polLabel = document.createElement('div');
+        polLabel.className = 'conv-step-label';
+        polLabel.textContent = '转化方针';
+        step2.appendChild(polLabel);
         var polCol = document.createElement('div');
         polCol.className = 'conv-detail-col';
-        var polLabel = document.createElement('span');
-        polLabel.className = 'conv-policy-label';
-        polLabel.textContent = '方针：';
-        polCol.appendChild(polLabel);
+        var polTag = document.createElement('span');
+        polTag.className = 'conv-policy-label';
+        polTag.textContent = '方针：';
+        polCol.appendChild(polTag);
         var polSelect = document.createElement('select');
         polSelect.className = 'conv-policy-select';
         polSelect.title = '选择转化方针';
@@ -1308,9 +1299,15 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         });
         if (blocked) polSelect.disabled = true;
         polCol.appendChild(polSelect);
-        detailRow.appendChild(polCol);
+        step2.appendChild(polCol);
 
         // ③ 开始生产：生产（可点）[数量框] 磅 产物名
+        var step3 = document.createElement('div');
+        step3.className = 'conv-step';
+        var startLabel = document.createElement('div');
+        startLabel.className = 'conv-step-label';
+        startLabel.textContent = '开始生产';
+        step3.appendChild(startLabel);
         var prodCol = document.createElement('div');
         prodCol.className = 'conv-detail-col';
         var prodBtn = document.createElement('button');
@@ -1330,9 +1327,11 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
         unitSpan.className = 'conv-unit';
         unitSpan.textContent = '磅 ' + productName;
         prodCol.appendChild(unitSpan);
-        detailRow.appendChild(prodCol);
+        step3.appendChild(prodCol);
 
-        convWrap.appendChild(detailRow);
+        convWrap.appendChild(step1);
+        convWrap.appendChild(step2);
+        convWrap.appendChild(step3);
 
         var result = document.createElement('div');
         result.className = 'conv-result';
@@ -1857,12 +1856,12 @@ var SHIP_SIZE = {
     '战列舰': { w: 4, h: 2 }
 };
 
-// 家产棋盘尺寸：小型 1×1、中型 2×1、大型 2×2、未指定大中小型 4×1
+// 家产棋盘尺寸：小型 2×1、中型 3×1、大型 4×2、未指定大中小型 4×1
 function estateSize(estate) {
     var s = estate.scale;
-    if (s === '小型') return { w: 1, h: 1 };
-    if (s === '中型') return { w: 2, h: 1 };
-    if (s === '大型') return { w: 2, h: 2 };
+    if (s === '小型') return { w: 2, h: 1 };
+    if (s === '中型') return { w: 3, h: 1 };
+    if (s === '大型') return { w: 4, h: 2 };
     return { w: 4, h: 1 };
 }
 

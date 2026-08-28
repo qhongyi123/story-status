@@ -417,6 +417,10 @@ body {
     .identity { display: contents; }
     .identity .name { margin-left: 1rem; }
     .identity .tags-container { flex-basis: 100%; }
+    .conv-block { flex-direction: column; gap: 8px; }
+    .conv-step { flex: 1 1 auto; }
+    .conv-step-label { text-align: left; }
+    .conv-result { flex-basis: auto; }
 }
 
 /* ===== 模式切换区块（骨架） ===== */
@@ -581,19 +585,23 @@ body {
 
 /* ===== 生产转化 ===== */
 .conv-block {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
     margin-top: 6px;
     border: 1px solid rgba(184,134,11,0.3);
     border-radius: 6px;
     background: var(--bg-quote);
     padding: 6px 10px;
 }
-.conv-btn-row {
+.conv-step {
+    flex: 1 1 0;
+    min-width: 0;
     display: flex;
-    justify-content: space-between;
-    gap: 6px;
+    flex-direction: column;
+    gap: 4px;
 }
 .conv-step-label {
-    flex: 1;
     text-align: center;
     font-size: 0.85rem;
     font-weight: bold;
@@ -601,18 +609,7 @@ body {
     padding: 4px 8px;
     user-select: none;
 }
-.conv-btn-row .collect-btn {
-    flex: 1;
-    padding: 4px 8px;
-}
-.conv-detail-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 6px;
-}
 .conv-detail-col {
-    flex: 1;
     min-width: 0;
     display: flex;
     align-items: center;
@@ -661,7 +658,8 @@ body {
     flex-shrink: 0;
 }
 .conv-result {
-    margin-top: 6px;
+    flex-basis: 100%;
+    margin-top: 4px;
     min-height: 16px;
     font-size: 0.78rem;
     color: var(--color-accent);
