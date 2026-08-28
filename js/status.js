@@ -1838,10 +1838,22 @@ function openAssignPopover(targetType, targetName, staffList, data, rerender) {
     ASSIGN_POPOVER = popover;
 
     var rect = anchor.getBoundingClientRect();
-    var sx = window.pageXOffset || 0;
-    var sy = window.pageYOffset || 0;
-    popover.style.left = (rect.left + sx) + 'px';
-    popover.style.top = (rect.bottom + 6 + sy) + 'px';
+    var popWidth = popover.offsetWidth;
+    var popHeight = popover.offsetHeight;
+    var viewW = window.innerWidth;
+    var viewH = window.innerHeight;
+
+    var left = rect.left;
+    if (left + popWidth > viewW - 8) left = viewW - popWidth - 8;
+    if (left < 8) left = 8;
+
+    var top = rect.bottom + 6;
+    if (top + popHeight > viewH - 8) {
+        top = rect.top - popHeight - 6;
+        if (top < 8) top = 8;
+    }
+    popover.style.left = left + 'px';
+    popover.style.top = top + 'px';
 }
 
 // 船型尺寸映射（4 列棋盘：小船到大船）
@@ -2365,7 +2377,7 @@ function openCommandPanel(data, anchorEl) {
         var rect = anchorEl.getBoundingClientRect();
         var cardEl = document.querySelector('.status-card');
         var cardRect = cardEl ? cardEl.getBoundingClientRect() : { left: 0, right: window.innerWidth };
-        var popWidth = 320;
+        var popWidth = popover.offsetWidth || 320;
         var sx = window.pageXOffset || 0;
         var sy = window.pageYOffset || 0;
         var left = Math.max(cardRect.left + 8, Math.min(rect.left, cardRect.right - popWidth - 8));

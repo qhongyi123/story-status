@@ -421,6 +421,7 @@ body {
     .conv-step { flex: 1 1 auto; }
     .conv-step-label { text-align: left; }
     .conv-result { flex-basis: auto; }
+    .command-popover { width: 256px; }
 }
 
 /* ===== 模式切换区块（骨架） ===== */
@@ -1139,6 +1140,8 @@ body {
     z-index: 200;
     min-width: 240px;
     max-width: 320px;
+    max-height: 60vh;
+    overflow-y: auto;
     background: linear-gradient(180deg, rgba(44,27,77,0.98), rgba(21,8,36,0.98));
     border: 1px solid var(--color-primary-dark);
     border-radius: 8px;
