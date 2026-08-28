@@ -422,6 +422,8 @@ body {
     .conv-step-label { text-align: left; }
     .conv-result { flex-basis: auto; }
     .command-popover { width: 256px; }
+    .story-log-panel-card { width: 50%; }
+    .story-log-backdrop { width: 50%; }
 }
 
 /* ===== 模式切换区块（骨架） ===== */
@@ -1391,7 +1393,7 @@ body {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 60%;
+    width: 52%;
     background: rgba(0, 0, 0, 0.35);
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -1404,8 +1406,8 @@ body {
     top: 0;
     right: 0;
     bottom: 0;
-    width: 40%;
-    max-width: 420px;
+    width: 48%;
+    max-width: 504px;
     background: linear-gradient(180deg, rgba(44,27,77,0.99), rgba(21,8,36,0.99));
     border-left: 2px solid var(--color-primary-dark);
     transform: translateX(100%);
