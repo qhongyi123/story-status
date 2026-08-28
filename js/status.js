@@ -2797,6 +2797,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 sliders: { spacing: document.getElementById('spacing-slider'), fontSize: document.getElementById('font-size-slider'), avatarSize: document.getElementById('avatar-size-slider'), panelHeight: document.getElementById('panel-height-slider') },
                 values: { spacing: document.getElementById('spacing-value'), fontSize: document.getElementById('font-size-value'), avatarSize: document.getElementById('avatar-size-value'), panelHeight: document.getElementById('panel-height-value') },
                 fontSelector: document.getElementById('font-selector'),
+                themeSelector: document.getElementById('theme-selector'),
+                themeValue: document.getElementById('theme-value'),
                 buttons: { reset: document.getElementById('reset-settings-btn') }
             },
             deleteConfirm: { panel: document.getElementById('delete-confirm-panel'), msgContent: document.getElementById('delete-msg-content'), btnConfirm: document.getElementById('confirm-delete-btn'), btnCancel: document.getElementById('cancel-delete-btn') },
@@ -2862,13 +2864,22 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         settings: {
-            DEFAULTS: { spacing: 1.5, fontSize: 16, avatarSize: 60, panelHeight: 480, fontFamily: "'ZCOOL XiaoWei', sans-serif" },
+            DEFAULTS: { spacing: 1.5, fontSize: 16, avatarSize: 60, panelHeight: 480, fontFamily: "'ZCOOL XiaoWei', sans-serif", theme: 'light' },
             getStorageKey: function() { return 'uiSettings_' + App.state.uniqueId; },
             load: function() {
                 var saved = {};
                 try { saved = JSON.parse(localStorage.getItem(this.getStorageKey())) || {}; } catch (e) {}
                 App.state.settings = Object.assign({}, this.DEFAULTS, saved);
                 this.apply(App.state.settings); this.updateUIControls(App.state.settings);
+            },
+            applyTheme: function(theme) {
+                var effective = theme || 'light';
+                if (effective === 'auto') {
+                    effective = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+                }
+                App.elements.root.setAttribute('data-theme', effective);
+                var themeValue = App.elements.settings.themeValue;
+                if (themeValue) themeValue.textContent = (effective === 'dark' ? '夜间模式' : '日间模式');
             },
             apply: function(s) {
                 var e = App.elements;
@@ -2878,6 +2889,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     e.root.style.setProperty('--avatar-size', s.avatarSize + 'px');
                     e.root.style.setProperty('--panel-height', s.panelHeight + 'px');
                     e.root.style.setProperty('--font-main', s.fontFamily);
+                    App.settings.applyTheme(s.theme);
                     Object.keys(e.settings.values).forEach(function(key) {
                         if (e.settings.values[key]) {
                             var val = s[key]; var unit = key.indexOf('spacing') !== -1 ? 'rem' : 'px';
@@ -2889,6 +2901,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateUIControls: function(s) {
                 Object.keys(App.elements.settings.sliders).forEach(function(k) { if (App.elements.settings.sliders[k]) App.elements.settings.sliders[k].value = s[k]; });
                 App.elements.settings.fontSelector.value = s.fontFamily;
+                if (App.elements.settings.themeSelector) App.elements.settings.themeSelector.value = s.theme;
             },
             save: function() {
                 var sliders = App.elements.settings.sliders;
@@ -2896,6 +2909,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var newS = Object.assign({}, App.state.settings);
                 Object.keys(sliders).forEach(function(k) { if(sliders[k]) newS[k] = parseFloat(sliders[k].value); });
                 newS.fontFamily = fontSelector.value;
+                if (App.elements.settings.themeSelector) newS.theme = App.elements.settings.themeSelector.value;
                 App.state.settings = newS; localStorage.setItem(this.getStorageKey(), JSON.stringify(newS)); this.apply(newS);
             },
             reset: function() { if(confirm('确定要恢复默认设置吗？操作不可逆。')) { App.state.settings = Object.assign({}, this.DEFAULTS); localStorage.removeItem(this.getStorageKey()); this.apply(App.state.settings); this.updateUIControls(App.state.settings); } }
@@ -3599,6 +3613,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             Object.values(settings.sliders).forEach(function(s) { if(s) s.addEventListener('input', App.throttle(function() { App.settings.save(); }, 100)); });
             settings.fontSelector.addEventListener('change', function() { App.settings.save(); });
+            if (settings.themeSelector) settings.themeSelector.addEventListener('change', function() { App.settings.save(); });
+            if (window.matchMedia) {
+                var mq = window.matchMedia('(prefers-color-scheme: dark)');
+                var onSchemeChange = function() { if (App.state.settings.theme === 'auto') App.settings.apply(App.state.settings); };
+                if (mq.addEventListener) mq.addEventListener('change', onSchemeChange); else if (mq.addListener) mq.addListener(onSchemeChange);
+            }
 
             settings.buttons.reset.addEventListener('click', function() { App.settings.reset(); });
 
