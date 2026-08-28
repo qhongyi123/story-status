@@ -80,11 +80,9 @@ body {
     background: transparent;
     margin: 0;
     padding: 10px 24px 0;
-    padding-bottom: 45vh;
     display: flex; justify-content: center; align-items: flex-start;
     box-sizing: border-box; font-size: 1rem;
-    height: auto;
-    min-height: 100vh;
+    height: auto; min-height: auto;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -421,8 +419,8 @@ body {
 .helper-btn.cancel { background: var(--color-cancel-bg); border: 1px solid var(--color-accent-border); color: var(--color-cancel-text);}
 
 @media (max-width: 500px) {
-    :root { --section-gap: 1rem; --base-font-size: 14px; }
-    body { padding: 4px 18px 0; padding-bottom: 45vh; }
+    :root { --section-gap: 1rem; --base-font-size: 14px; --panel-height: 384px !important; }
+    body { padding: 4px 18px 0; }
     .status-card { margin: 5px auto 0; border-radius: 8px 16px 16px 8px; }
     .status-card::before { width: 10px; border-radius: 6px 0 0 6px; }
     .card-content { padding: 1rem; margin: 4px 4px 4px 12px; border-radius: 8px;}
