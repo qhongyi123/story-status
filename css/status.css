@@ -82,7 +82,6 @@ body {
     padding: 10px 24px 0;
     display: flex; justify-content: center; align-items: flex-start;
     box-sizing: border-box; font-size: 1rem;
-    transform: translateZ(0);
     height: auto; min-height: auto;
 }
 
@@ -99,7 +98,6 @@ body {
     position: relative;
     width: 100%; max-width: var(--card-max-width);
     margin: 10px auto 0; box-sizing: border-box; transition: max-width 0.3s ease;
-    touch-action: pan-y;
 }
 
 .status-card::before {
@@ -114,7 +112,6 @@ body {
     border-radius: 12px;
     margin: 6px 6px 6px 20px;
     padding: 1.25rem 1.5rem; position: relative; z-index: 1;
-    touch-action: pan-y;
 }
 
 .collapse-badge {
@@ -156,7 +153,6 @@ body {
     min-height: var(--panel-height);
     overflow: visible;
     animation: fadeIn 0.4s ease forwards;
-    touch-action: pan-y;
 }
 .page.active {
     display: block;
