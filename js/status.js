@@ -104,25 +104,6 @@ function formatTime(t) {
     return s;
 }
 
-// 读取当前用户名称：优先 SillyTavern 上下文（name2），否则回退到变量里的名字
-function resolveUserName(fallback) {
-    try {
-        if (typeof getContext === 'function') {
-            var ctx = getContext();
-            var n = ctx && ctx.name2;
-            if (n) return String(n);
-        }
-    } catch (e) {}
-    try {
-        if (typeof window.SillyTavern === 'object' && typeof window.SillyTavern.getContext === 'function') {
-            var c2 = window.SillyTavern.getContext();
-            var n2 = c2 && c2.name2;
-            if (n2) return String(n2);
-        }
-    } catch (e) {}
-    return (fallback && fallback !== '{{user}}') ? fallback : '{{user}}';
-}
-
 // 世界信息条的可切换项（顺序即默认展示顺序）
 var WIB_ITEMS = [
     { key: 'date',     label: '日期' },
@@ -1701,7 +1682,7 @@ async function fetchCharEntryContents() {
     var map = {};
     try {
         if (typeof getLorebookEntries !== 'function') return map;
-        var entries = await getLorebookEntries('千叶童话', { fields: ['uid', 'comment', 'content', 'order'] });
+        var entries = await getLorebookEntries('千叶的睡前小故事', { fields: ['uid', 'comment', 'content', 'order'] });
         (entries || []).forEach(function(e) {
             if (e.order >= 100 && e.order <= 124 && e.comment) {
                 map[String(e.comment).trim()] = e.content || '';
@@ -2921,7 +2902,6 @@ document.addEventListener('DOMContentLoaded', function() {
             avatar: document.getElementById('avatar'),
             avatarPlaceholder: document.getElementById('avatar-placeholder'),
             text: {
-                name: document.getElementById('char-name'),
                 title: document.getElementById('char-title'),
                 psyche: document.getElementById('psyche-bubble'),
                 tagContainer: document.getElementById('identity-tags-container')
@@ -3306,7 +3286,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 var d = App.state.parsedData; var prev = App.state.prevRenderData; var text = App.elements.text; var containers = App.elements.containers;
                 if (!d || !d.user) return;
                 requestAnimationFrame(function() {
-                    if (text.name) text.name.textContent = resolveUserName(d.user.name);
                     if (d.user.identity !== prev.title) { text.title.textContent = d.user.identity || '...'; prev.title = d.user.identity; }
                     if (d.user.bodyState !== prev.bodyState) { App.ui.renderBodyState(d.user.bodyState); prev.bodyState = d.user.bodyState; }
                     if (d.user.psyche !== prev.psyche) { text.psyche.textContent = d.user.psyche || '没有特殊的情绪波澜...'; prev.psyche = d.user.psyche; }
