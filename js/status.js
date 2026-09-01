@@ -104,6 +104,25 @@ function formatTime(t) {
     return s;
 }
 
+// 读取当前用户名称：优先 SillyTavern 上下文（name2），否则回退到变量里的名字
+function resolveUserName(fallback) {
+    try {
+        if (typeof getContext === 'function') {
+            var ctx = getContext();
+            var n = ctx && ctx.name2;
+            if (n) return String(n);
+        }
+    } catch (e) {}
+    try {
+        if (typeof window.SillyTavern === 'object' && typeof window.SillyTavern.getContext === 'function') {
+            var c2 = window.SillyTavern.getContext();
+            var n2 = c2 && c2.name2;
+            if (n2) return String(n2);
+        }
+    } catch (e) {}
+    return (fallback && fallback !== '{{user}}') ? fallback : '{{user}}';
+}
+
 // 世界信息条的可切换项（顺序即默认展示顺序）
 var WIB_ITEMS = [
     { key: 'date',     label: '日期' },
@@ -133,6 +152,12 @@ var CURRENT_REL_TAB = '管理';
 
 // 相关人员分组的展开状态（仅会话内记忆、不持久化；状态栏重新出现时恢复默认折叠）
 var REL_GROUP_OPEN = {};
+
+// 地区民俗风情的当前选中下标（按地区名记忆，仅会话内）
+var REGION_CUSTOM_INDEX = {};
+
+// 自定义角色条目（uid 100~124）内容缓存：条目名 -> 内容
+var CACHED_CHAR_ENTRIES = {};
 
 // 薪资确认按钮冷却表：名字 -> 到期时间戳(ms)，跨重渲染保持冷却
 var SALARY_COOLDOWN = {};
@@ -260,9 +285,14 @@ function refreshVariables(done) {
         prev.world = null;
         prev.wealth = null;
         prev.gold = null;
+        return refreshCharEntries();
+    }).then(function() {
         app.ui.updateAll();
         if (done) done();
-    }).catch(function() { if (done) done(); });
+    }).catch(function() {
+        app.ui.updateAll();
+        if (done) done();
+    });
 }
 
 // 刷新所有转化方针下拉（方针编辑面板关闭后调用）
@@ -640,6 +670,82 @@ function buildEntityCard(name, rows) {
     card.appendChild(nameEl);
     var list = buildKVList(rows);
     if (list) card.appendChild(list);
+    return card;
+}
+
+// 地区卡：描述 + 民俗风情（左右箭头切换不同民俗）
+function buildRegionCard(name, r) {
+    var card = document.createElement('div');
+    card.className = 'entity-card region-card';
+    var nameEl = document.createElement('div');
+    nameEl.className = 'entity-name';
+    nameEl.textContent = name;
+    card.appendChild(nameEl);
+
+    var descLabel = document.createElement('div');
+    descLabel.className = 'region-field-label';
+    descLabel.textContent = '描述';
+    card.appendChild(descLabel);
+    var descVal = document.createElement('div');
+    descVal.className = 'region-desc';
+    descVal.textContent = r['描述'] || r.description || '';
+    card.appendChild(descVal);
+
+    var customs = r['民俗风情'] || {};
+    var customKeys = Object.keys(customs);
+    var customsLabel = document.createElement('div');
+    customsLabel.className = 'region-field-label';
+    customsLabel.textContent = '民俗风情：';
+    card.appendChild(customsLabel);
+
+    if (!customKeys.length) {
+        var empty = buildEmptyHint('暂无民俗风情');
+        card.appendChild(empty);
+        return card;
+    }
+
+    var idx = REGION_CUSTOM_INDEX[name] || 0;
+    if (idx >= customKeys.length) idx = 0;
+    REGION_CUSTOM_INDEX[name] = idx;
+
+    var nav = document.createElement('div');
+    nav.className = 'region-custom-nav';
+    var leftBtn = document.createElement('button');
+    leftBtn.type = 'button';
+    leftBtn.className = 'region-arrow-btn';
+    leftBtn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var nameSpan = document.createElement('span');
+    nameSpan.className = 'region-custom-name';
+    var rightBtn = document.createElement('button');
+    rightBtn.type = 'button';
+    rightBtn.className = 'region-arrow-btn';
+    rightBtn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15"><path d="M9 5 L16 12 L9 19" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    nav.appendChild(leftBtn);
+    nav.appendChild(nameSpan);
+    nav.appendChild(rightBtn);
+    card.appendChild(nav);
+
+    var contentEl = document.createElement('div');
+    contentEl.className = 'region-custom-content';
+    card.appendChild(contentEl);
+
+    function render() {
+        var i = REGION_CUSTOM_INDEX[name] || 0;
+        if (i >= customKeys.length) i = 0;
+        nameSpan.textContent = customKeys[i];
+        contentEl.textContent = customs[customKeys[i]] || '';
+    }
+    leftBtn.addEventListener('click', function() {
+        var i = (REGION_CUSTOM_INDEX[name] || 0);
+        REGION_CUSTOM_INDEX[name] = (i - 1 + customKeys.length) % customKeys.length;
+        render();
+    });
+    rightBtn.addEventListener('click', function() {
+        var i = (REGION_CUSTOM_INDEX[name] || 0);
+        REGION_CUSTOM_INDEX[name] = (i + 1) % customKeys.length;
+        render();
+    });
+    render();
     return card;
 }
 
@@ -1124,7 +1230,6 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
     var card = buildEntityCard(name, [
         { label: '位置', value: estate.location },
         { label: '规模', value: estate.scale },
-        { label: '品质', value: estate.quality },
         { label: '状况', value: estate.status },
         { label: '产品', value: fmtList(estate.product) },
         { label: '经营', value: estate.business }
@@ -1579,25 +1684,71 @@ function genderSymbol(gender) {
 }
 
 // 角色统一字段（location，性别符号显示在姓名行右侧，薪资改为可编辑项单独渲染）
-function personRows(person) {
-    return [
-        { label: '位置', value: person.location }
-    ];
+// 从角色世界书条目内容里剥离 <人物名>...</人物名> 包裹，仅保留内部内容
+function extractCharEntryDesc(name, content) {
+    if (!content) return '';
+    var s = String(content).trim();
+    var open = '<' + name + '>';
+    var close = '</' + name + '>';
+    var start = s.indexOf(open);
+    var end = s.lastIndexOf(close);
+    if (start !== -1 && end > start) return s.slice(start + open.length, end).trim();
+    return s;
 }
 
-// 只读人物卡：姓名行右侧显示性别符号 + 字段 + 薪资编辑 + 当前就职（指令模式下点击选中为目标角色）
+// 读取自定义角色条目（uid 100~124）内容，按条目名建立映射
+async function fetchCharEntryContents() {
+    var map = {};
+    try {
+        if (typeof getLorebookEntries !== 'function') return map;
+        var entries = await getLorebookEntries('千叶童话', { fields: ['uid', 'comment', 'content', 'order'] });
+        (entries || []).forEach(function(e) {
+            if (e.order >= 100 && e.order <= 124 && e.comment) {
+                map[String(e.comment).trim()] = e.content || '';
+            }
+        });
+    } catch (e) {}
+    return map;
+}
+
+// 刷新角色条目缓存
+async function refreshCharEntries() {
+    CACHED_CHAR_ENTRIES = await fetchCharEntryContents();
+}
+
+// 只读人物卡：姓名/位置/性别同一行，描述（简介或世界书条目）单独一行，另有薪资编辑与当前就职
 function buildPersonCard(name, person, employment, data) {
-    var card = buildEntityCard(name, personRows(person));
-    card.classList.add('person-card');
+    var card = document.createElement('div');
+    card.className = 'entity-card person-card';
     card.dataset.personName = name;
     if (SELECTED_PERSON === name) card.classList.add('person-selected');
-    var nameEl = card.querySelector('.entity-name');
-    if (nameEl) {
-        nameEl.classList.add('entity-name-with-symbol');
-        var sym = document.createElement('span');
-        sym.className = 'entity-gender-symbol';
-        sym.textContent = genderSymbol(person.gender);
-        nameEl.appendChild(sym);
+
+    var topLine = document.createElement('div');
+    topLine.className = 'person-top-line';
+    var nameEl = document.createElement('span');
+    nameEl.className = 'person-name';
+    nameEl.textContent = name;
+    topLine.appendChild(nameEl);
+    var loc = person.location || '';
+    if (loc) {
+        var locEl = document.createElement('span');
+        locEl.className = 'person-location';
+        locEl.textContent = loc;
+        topLine.appendChild(locEl);
+    }
+    var sym = document.createElement('span');
+    sym.className = 'person-gender-symbol';
+    sym.textContent = genderSymbol(person.gender);
+    topLine.appendChild(sym);
+    card.appendChild(topLine);
+
+    var desc = person.desc || '';
+    if (!desc) desc = extractCharEntryDesc(name, CACHED_CHAR_ENTRIES[name] || '');
+    if (desc) {
+        var descEl = document.createElement('div');
+        descEl.className = 'person-desc';
+        descEl.textContent = desc;
+        card.appendChild(descEl);
     }
 
     // 薪资编辑：修改后写回 relationship.expense 并记录涨/降薪日志
@@ -1885,7 +2036,7 @@ function shipSize(ship) {
 function estateTileClass(estate, staffed) {
     var needsStaff = estate.type === '商业' || estate.type === '农事' || estate.type === '手工业';
     if (!needsStaff) return 'tile-neutral';
-    if (estate.status === '荒废' || estate.status === '歇业') return 'tile-derelict';
+    if (estate.status === '荒废') return 'tile-derelict';
     return staffed ? 'tile-staffed' : 'tile-vacant';
 }
 
@@ -2375,21 +2526,21 @@ function openCommandPanel(data, anchorEl) {
 
     if (anchorEl) {
         var rect = anchorEl.getBoundingClientRect();
-        var cardEl = document.querySelector('.status-card');
-        var cardRect = cardEl ? cardEl.getBoundingClientRect() : { left: 0, right: window.innerWidth };
         var popWidth = popover.offsetWidth || 320;
-        var sx = window.pageXOffset || 0;
-        var sy = window.pageYOffset || 0;
-        var left = Math.max(cardRect.left + 8, Math.min(rect.left, cardRect.right - popWidth - 8));
-        popover.style.left = (left + sx) + 'px';
-
-        // 先放下方，若触底则改放上方
-        var top = rect.bottom + 6 + sy;
         var popHeight = popover.offsetHeight;
-        if (popHeight && top + popHeight > sy + window.innerHeight) {
-            top = rect.top - 6 + sy - popHeight;
-            if (top < sy + 8) top = sy + 8;
+        var viewW = window.innerWidth;
+        var viewH = window.innerHeight;
+
+        var left = rect.left;
+        if (left + popWidth > viewW - 8) left = viewW - popWidth - 8;
+        if (left < 8) left = 8;
+
+        var top = rect.bottom + 6;
+        if (popHeight && top + popHeight > viewH - 8) {
+            top = rect.top - popHeight - 6;
+            if (top < 8) top = 8;
         }
+        popover.style.left = left + 'px';
         popover.style.top = top + 'px';
     } else {
         popover.style.right = '20px';
@@ -2682,11 +2833,7 @@ var SECTION_RENDERERS = {
         var names = Object.keys(region);
         if (!names.length) { section.appendChild(buildEmptyHint('暂无地区信息...')); }
         else names.forEach(function(name) {
-            var r = region[name] || {};
-            section.appendChild(buildEntityCard(name, [
-                { label: '描述', value: r['描述'] || r.description },
-                { label: '民俗风情', value: r['民俗风情'] }
-            ]));
+            section.appendChild(buildRegionCard(name, region[name] || {}));
         });
         container.appendChild(section);
     }
@@ -2774,6 +2921,7 @@ document.addEventListener('DOMContentLoaded', function() {
             avatar: document.getElementById('avatar'),
             avatarPlaceholder: document.getElementById('avatar-placeholder'),
             text: {
+                name: document.getElementById('char-name'),
                 title: document.getElementById('char-title'),
                 psyche: document.getElementById('psyche-bubble'),
                 tagContainer: document.getElementById('identity-tags-container')
@@ -3158,6 +3306,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var d = App.state.parsedData; var prev = App.state.prevRenderData; var text = App.elements.text; var containers = App.elements.containers;
                 if (!d || !d.user) return;
                 requestAnimationFrame(function() {
+                    if (text.name) text.name.textContent = resolveUserName(d.user.name);
                     if (d.user.identity !== prev.title) { text.title.textContent = d.user.identity || '...'; prev.title = d.user.identity; }
                     if (d.user.bodyState !== prev.bodyState) { App.ui.renderBodyState(d.user.bodyState); prev.bodyState = d.user.bodyState; }
                     if (d.user.psyche !== prev.psyche) { text.psyche.textContent = d.user.psyche || '没有特殊的情绪波澜...'; prev.psyche = d.user.psyche; }
@@ -3620,6 +3769,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if(this.state.parsedData.user.name && this.state.parsedData.user.name !== '{{user}}') {
                      this.state.uniqueId = this.state.parsedData.user.name.replace(/\s/g, '');
                 }
+                await refreshCharEntries();
                 this.uiStateConfig.load();
                 this.settings.load(); this.bindEvents(); await this.db.init();
                 var avatarFile = await this.db.load(this.state.uniqueId);
