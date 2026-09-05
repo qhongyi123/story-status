@@ -1121,6 +1121,7 @@ body {
     gap: 6px;
 }
 .asset-tile {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1146,6 +1147,52 @@ body {
 .tile-staffed  { background: rgba(201,162,39,0.5); }    /* 黄：已有人员就职 */
 .tile-neutral  { background: rgba(74,111,165,0.45); }   /* 蓝：居所/闲置等无需就职 */
 .tile-derelict { background: rgba(165,74,74,0.5); }     /* 红：荒废/歇业/船体重损 */
+
+/* ===== 家产地块层级：地块名 / 展开按钮 / 面包屑 ===== */
+.asset-tile-name {
+    width: 100%;
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1;
+}
+.asset-tile-expand {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: calc((100% - 18px) / 4);
+    height: 52px;
+    padding: 0;
+    color: #f5e6c8;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(184,134,11,0.5);
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 0;
+}
+.asset-tile-expand:hover { border-color: #fff; color: #fff; }
+.board-breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+    font-size: 0.78rem;
+    color: var(--color-text-dark);
+}
+.board-crumb {
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    color: var(--color-primary-dark);
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: bold;
+}
+.board-crumb:hover { color: var(--color-primary); text-decoration: underline; }
+.board-crumb-sep { color: rgba(184,134,11,0.5); }
 
 /* ===== 薪资明细 ===== */
 .payroll-detail { margin-top: 8px; }

@@ -137,7 +137,7 @@ var REL_GROUP_OPEN = {};
 // 地区民俗风情的当前选中下标（按地区名记忆，仅会话内）
 var REGION_CUSTOM_INDEX = {};
 
-// 自定义角色条目（uid 100~124）内容缓存：条目名 -> 内容
+// 自定义角色条目（uid 125~149）内容缓存：条目名 -> 内容
 var CACHED_CHAR_ENTRIES = {};
 
 // 薪资确认按钮冷却表：名字 -> 到期时间戳(ms)，跨重渲染保持冷却
@@ -154,6 +154,9 @@ var CURRENT_BOARD_TAB = '家产';
 
 // 家产棋盘是否按地区（大洲）分类
 var GROUP_BY_REGION = false;
+
+// 家产棋盘下钻路径（面包屑栈，空数组 = 顶层）
+var ESTATE_BOARD_PATH = [];
 
 // 指令系统：分类 → 指令模板（{角色}=目标名，{TA}=代词 男→他/其余→她）
 var COMMAND_GROUPS = [
@@ -443,6 +446,9 @@ function scoreToQuality(avg) {
 function extractCount(countStr) {
     if (countStr === undefined || countStr === null) return 0;
     if (typeof countStr === 'number') return countStr;
+    if (typeof countStr === 'object') {
+        return extractCount(countStr.count !== undefined ? countStr.count : countStr.数目);
+    }
     var m = String(countStr).match(/(\d+(?:\.\d+)?)/);
     return m ? parseFloat(m[1]) : 0;
 }
@@ -1210,6 +1216,7 @@ function buildEstateCard(name, estate, todayISO, currentWealth, warehouse, staff
     var blocked = gatedType && !hasStaff;
     var card = buildEntityCard(name, [
         { label: '位置', value: estate.location },
+        { label: '所属', value: estateBelong(estate) || '顶层' },
         { label: '规模', value: estate.scale },
         { label: '状况', value: estate.status },
         { label: '产品', value: fmtList(estate.product) },
@@ -1677,14 +1684,14 @@ function extractCharEntryDesc(name, content) {
     return s;
 }
 
-// 读取自定义角色条目（uid 100~124）内容，按条目名建立映射
+// 读取自定义角色条目（uid 125~149）内容，按条目名建立映射
 async function fetchCharEntryContents() {
     var map = {};
     try {
         if (typeof getLorebookEntries !== 'function') return map;
         var entries = await getLorebookEntries('千叶的睡前小故事', { fields: ['uid', 'comment', 'content', 'order'] });
         (entries || []).forEach(function(e) {
-            if (e.order >= 100 && e.order <= 124 && e.comment) {
+            if (e.order >= 125 && e.order <= 149 && e.comment) {
                 map[String(e.comment).trim()] = e.content || '';
             }
         });
@@ -1732,46 +1739,50 @@ function buildPersonCard(name, person, employment, data) {
         card.appendChild(descEl);
     }
 
-    // 薪资编辑：修改后写回 relationship.expense 并记录涨/降薪日志
-    var salaryRow = document.createElement('div');
-    salaryRow.className = 'salary-row';
-    var salaryLabel = document.createElement('span');
-    salaryLabel.className = 'salary-label';
-    salaryLabel.textContent = '薪资：';
-    salaryRow.appendChild(salaryLabel);
-    var salaryInput = document.createElement('input');
-    salaryInput.type = 'number';
-    salaryInput.min = '0';
-    salaryInput.value = extractCount(person.expense);
-    salaryInput.className = 'recipe-batch';
-    salaryInput.addEventListener('click', function(e) { e.stopPropagation(); });
-    salaryRow.appendChild(salaryInput);
-    var salaryUnit = document.createElement('span');
-    salaryUnit.className = 'salary-unit';
-    salaryUnit.textContent = '银币/月';
-    salaryRow.appendChild(salaryUnit);
-    var salaryConfirm = document.createElement('button');
-    salaryConfirm.type = 'button';
-    salaryConfirm.className = 'collect-btn salary-confirm';
-    salaryConfirm.textContent = '确认';
-    salaryConfirm.dataset.person = name;
-    if ((SALARY_COOLDOWN[name] || 0) > Date.now()) salaryConfirm.disabled = true;
-    salaryConfirm.addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (salaryConfirm.disabled) return;
-        updatePersonSalary(name, person, salaryInput, data);
-        var exp = Date.now() + 2000;
-        SALARY_COOLDOWN[name] = exp;
-        salaryConfirm.disabled = true;
-        setTimeout(function() {
-            delete SALARY_COOLDOWN[name];
-            document.querySelectorAll('.salary-confirm').forEach(function(b) {
-                if (b.getAttribute('data-person') === name) b.disabled = false;
-            });
-        }, 2000);
-    });
-    salaryRow.appendChild(salaryConfirm);
-    card.appendChild(salaryRow);
+    // 薪资编辑：仅在角色有薪资（expense 非空且 > 0）时显示；不在身边工作/无需薪资者不显示
+    var expenseVal = person.expense;
+    var hasSalary = expenseVal !== undefined && expenseVal !== null && String(expenseVal).trim() !== '' && extractCount(expenseVal) > 0;
+    if (hasSalary) {
+        var salaryRow = document.createElement('div');
+        salaryRow.className = 'salary-row';
+        var salaryLabel = document.createElement('span');
+        salaryLabel.className = 'salary-label';
+        salaryLabel.textContent = '薪资：';
+        salaryRow.appendChild(salaryLabel);
+        var salaryInput = document.createElement('input');
+        salaryInput.type = 'number';
+        salaryInput.min = '0';
+        salaryInput.value = extractCount(person.expense);
+        salaryInput.className = 'recipe-batch';
+        salaryInput.addEventListener('click', function(e) { e.stopPropagation(); });
+        salaryRow.appendChild(salaryInput);
+        var salaryUnit = document.createElement('span');
+        salaryUnit.className = 'salary-unit';
+        salaryUnit.textContent = '银币/月';
+        salaryRow.appendChild(salaryUnit);
+        var salaryConfirm = document.createElement('button');
+        salaryConfirm.type = 'button';
+        salaryConfirm.className = 'collect-btn salary-confirm';
+        salaryConfirm.textContent = '确认';
+        salaryConfirm.dataset.person = name;
+        if ((SALARY_COOLDOWN[name] || 0) > Date.now()) salaryConfirm.disabled = true;
+        salaryConfirm.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (salaryConfirm.disabled) return;
+            updatePersonSalary(name, person, salaryInput, data);
+            var exp = Date.now() + 2000;
+            SALARY_COOLDOWN[name] = exp;
+            salaryConfirm.disabled = true;
+            setTimeout(function() {
+                delete SALARY_COOLDOWN[name];
+                document.querySelectorAll('.salary-confirm').forEach(function(b) {
+                    if (b.getAttribute('data-person') === name) b.disabled = false;
+                });
+            }, 2000);
+        });
+        salaryRow.appendChild(salaryConfirm);
+        card.appendChild(salaryRow);
+    }
 
     var a = employment && employment[name];
     var line = document.createElement('div');
@@ -1817,7 +1828,7 @@ function buildPayrollTable(rel, employment) {
     var rows = [];
     getAllPersons(rel).forEach(function(p) {
         var expense = p.data && p.data.expense;
-        if (!expense) return;
+        if (!expense || extractCount(expense) <= 0) return;
         var a = employment && employment[p.name];
         var place = a && a.name ? ((a.type === 'estate' ? '家产·' : '船只·') + a.name) : '未就职';
         rows.push({ name: p.name, salary: String(expense), place: place });
@@ -2000,12 +2011,13 @@ var SHIP_SIZE = {
     '战列舰': { w: 4, h: 2 }
 };
 
-// 家产棋盘尺寸：小型 2×1、中型 3×1、大型 4×2、未指定大中小型 4×1
+// 家产棋盘尺寸：PC 端小型 1×1、中型 2×1、大型 4×2；移动端小型 2×1、中型 3×1、大型 4×2；未指定 4×1
 function estateSize(estate) {
     var s = estate.scale;
-    if (s === '小型') return { w: 2, h: 1 };
-    if (s === '中型') return { w: 3, h: 1 };
+    var mobile = typeof window !== 'undefined' && window.innerWidth <= 768;
     if (s === '大型') return { w: 4, h: 2 };
+    if (s === '中型') return mobile ? { w: 3, h: 1 } : { w: 2, h: 1 };
+    if (s === '小型') return mobile ? { w: 2, h: 1 } : { w: 1, h: 1 };
     return { w: 4, h: 1 };
 }
 
@@ -2062,23 +2074,138 @@ function layoutItems(items) {
     return result;
 }
 
-// 自适应地块字号：按字数确定性计算（全角汉字宽≈1em），不换行地块统一 50px，换行地块缩到最接近边缘且不换行
+// ===== 家产层级（belong）辅助 =====
+// 地块归属：belong 为空/缺省视为顶层
+function estateBelong(estate) {
+    var b = estate && estate.belong;
+    return (b === undefined || b === null) ? '' : String(b);
+}
+
+// 某地块的子地块名（belong 指向它的地块）
+function childrenOfEstate(name, estate) {
+    var out = [];
+    Object.keys(estate || {}).forEach(function(k) {
+        if (estateBelong(estate[k]) === name) out.push(k);
+    });
+    return out;
+}
+
+// 收集某地块及其所有子孙中「需要就职」（商业/农事/手工业）的叶子名
+function collectNeedyEstateLeaves(name, estate, out, visiting) {
+    out = out || [];
+    visiting = visiting || {};
+    if (visiting[name]) return out;
+    visiting[name] = true;
+    var children = childrenOfEstate(name, estate);
+    if (!children.length) {
+        var e = estate[name] || {};
+        if (e.type === '商业' || e.type === '农事' || e.type === '手工业') out.push(name);
+    } else {
+        children.forEach(function(c) { collectNeedyEstateLeaves(c, estate, out, visiting); });
+    }
+    return out;
+}
+
+// 递归计算地块显示尺寸：叶子用自身 scale；容器 = 子孙在 4 列内装箱的包围盒（4 × 行数）
+function plotTreeSize(name, estate, cache, visiting) {
+    cache = cache || {};
+    visiting = visiting || {};
+    if (cache[name]) return cache[name];
+    if (visiting[name]) { cache[name] = estateSize(estate[name] || {}); return cache[name]; }
+    visiting[name] = true;
+    var children = childrenOfEstate(name, estate);
+    var size;
+    if (!children.length) {
+        size = estateSize(estate[name] || {});
+    } else {
+        var items = children.map(function(c) {
+            var s = plotTreeSize(c, estate, cache, visiting);
+            return { name: c, w: s.w, h: s.h };
+        });
+        var layout = layoutItems(items);
+        var rows = 0;
+        layout.forEach(function(it) { if (it.row + it.h > rows) rows = it.row + it.h; });
+        size = { w: 4, h: rows || 1 };
+    }
+    delete visiting[name];
+    cache[name] = size;
+    return size;
+}
+
+// 地块颜色（含容器）：荒废→红；容器按子孙需就职叶子的就职情况取最严重档
+function estateTileClassNested(name, estate, estateMap, ai) {
+    var children = childrenOfEstate(name, estateMap);
+    if (!children.length) {
+        return estateTileClass(estate, !!(ai[name] && ai[name].length));
+    }
+    if ((estate && estate.status) === '荒废') return 'tile-derelict';
+    var needy = collectNeedyEstateLeaves(name, estateMap);
+    if (!needy.length) return 'tile-neutral';
+    for (var i = 0; i < needy.length; i++) {
+        if (!(ai[needy[i]] && ai[needy[i]].length)) return 'tile-vacant';
+    }
+    return 'tile-staffed';
+}
+
+// 当前层级下的地块名列表（顶层 = belong 为空；否则 = belong 指向路径末元素）
+function currentEstateBoardNames(estate) {
+    var parent = ESTATE_BOARD_PATH.length ? ESTATE_BOARD_PATH[ESTATE_BOARD_PATH.length - 1] : '';
+    var keys = Object.keys(estate || {});
+    return keys.filter(function(n) {
+        var b = estateBelong(estate[n]);
+        if (parent) return b === parent;
+        // 顶层：belong 为空，或 belong 指向不存在的地块（孤儿兜底）
+        return b === '' || keys.indexOf(b) === -1;
+    });
+}
+
+// 面包屑：顶层 / 庄园 / 小院，各级可点击跳转
+function buildEstateBreadcrumb(rerender) {
+    var bar = document.createElement('div');
+    bar.className = 'board-breadcrumb';
+    function crumb(label, targetPath) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'board-crumb';
+        b.textContent = label;
+        b.addEventListener('click', function() {
+            ESTATE_BOARD_PATH = targetPath.slice();
+            CURRENT_ASSIGN_TARGET = null;
+            closeOverlays();
+            rerender();
+        });
+        return b;
+    }
+    bar.appendChild(crumb('顶层', []));
+    ESTATE_BOARD_PATH.forEach(function(name, i) {
+        var sep = document.createElement('span');
+        sep.className = 'board-crumb-sep';
+        sep.textContent = ' / ';
+        bar.appendChild(sep);
+        bar.appendChild(crumb(name, ESTATE_BOARD_PATH.slice(0, i + 1)));
+    });
+    return bar;
+}
+
+// 自适应地块字号：按字数确定性计算（全角汉字宽≈1em），保证完整显示不换行，文字尽量与边框同宽
 function fitTileText(el) {
-    var chars = (el.textContent || '').length;
+    var nameEl = el.querySelector('.asset-tile-name') || el;
+    var chars = (nameEl.textContent || '').length;
     if (!chars) return;
     var avail = el.clientWidth - 8;
     if (avail <= 0) return;
     var size = Math.floor((avail - 1) / chars);
     if (size > 50) size = 50;
     if (size < 12) size = 12;
-    el.style.fontSize = size + 'px';
+    nameEl.style.fontSize = size + 'px';
 }
 
-// 棋盘渲染：家产/船只共用，点击地块后由 rerender 在下方显示人员安排详情
+// 棋盘渲染：家产/船只共用，点击地块后由 rerender 在下方显示人员安排详情；家产复合地块带「展开」按钮下钻
 function buildAssetBoard(type, names, assetMap, ai, data, rerender) {
+    var sizeCache = {};
     var items = names.map(function(n) {
         var a = assetMap[n] || {};
-        var size = type === 'estate' ? estateSize(a) : shipSize(a);
+        var size = type === 'estate' ? plotTreeSize(n, assetMap, sizeCache) : shipSize(a);
         return { name: n, w: size.w, h: size.h, asset: a };
     });
     var layout = layoutItems(items);
@@ -2091,12 +2218,34 @@ function buildAssetBoard(type, names, assetMap, ai, data, rerender) {
     var tiles = [];
     layout.forEach(function(it) {
         var staffed = !!(ai[it.name] && ai[it.name].length);
-        var cls = type === 'estate' ? estateTileClass(it.asset, staffed) : shipTileClass(it.asset, staffed);
+        var cls = type === 'estate' ? estateTileClassNested(it.name, it.asset, assetMap, ai) : shipTileClass(it.asset, staffed);
         var cell = document.createElement('div');
         cell.className = 'asset-tile ' + cls;
         cell.style.gridColumn = (it.col + 1) + ' / span ' + it.w;
         cell.style.gridRow = (it.row + 1) + ' / span ' + it.h;
-        cell.textContent = it.name;
+
+        var nameSpan = document.createElement('span');
+        nameSpan.className = 'asset-tile-name';
+        nameSpan.textContent = it.name;
+        cell.appendChild(nameSpan);
+
+        if (type === 'estate' && childrenOfEstate(it.name, assetMap).length) {
+            var expandBtn = document.createElement('button');
+            expandBtn.type = 'button';
+            expandBtn.className = 'asset-tile-expand';
+            expandBtn.setAttribute('title', '展开内部地块');
+            expandBtn.setAttribute('aria-label', '展开内部地块');
+            expandBtn.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="1"/><rect x="9" y="9" width="12" height="12" rx="1"/></svg>';
+            expandBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                ESTATE_BOARD_PATH.push(it.name);
+                CURRENT_ASSIGN_TARGET = null;
+                closeOverlays();
+                rerender();
+            });
+            cell.appendChild(expandBtn);
+        }
+
         if (CURRENT_ASSIGN_TARGET && CURRENT_ASSIGN_TARGET.type === type && CURRENT_ASSIGN_TARGET.name === it.name) {
             cell.classList.add('selected');
         }
@@ -2245,41 +2394,49 @@ function renderManagementTab(data, content, rerender) {
         }
     }
     if (CURRENT_BOARD_TAB === '家产') {
-        if (estateNames.length) {
-            // 按地区分类勾选项
-            var regionToggle = document.createElement('label');
-            regionToggle.className = 'region-toggle';
-            var cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.checked = GROUP_BY_REGION;
-            cb.addEventListener('change', function() {
-                GROUP_BY_REGION = cb.checked;
-                closeOverlays();
-                rerender();
-            });
-            regionToggle.appendChild(cb);
-            regionToggle.appendChild(document.createTextNode('按地区分类'));
-            content.appendChild(regionToggle);
+        if (ESTATE_BOARD_PATH.length) {
+            content.appendChild(buildEstateBreadcrumb(rerender));
+        }
+        var boardEstateNames = currentEstateBoardNames(data.estate || {});
+        if (boardEstateNames.length) {
+            if (!ESTATE_BOARD_PATH.length) {
+                // 顶层才显示按地区分类勾选项
+                var regionToggle = document.createElement('label');
+                regionToggle.className = 'region-toggle';
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = GROUP_BY_REGION;
+                cb.addEventListener('change', function() {
+                    GROUP_BY_REGION = cb.checked;
+                    closeOverlays();
+                    rerender();
+                });
+                regionToggle.appendChild(cb);
+                regionToggle.appendChild(document.createTextNode('按地区分类'));
+                content.appendChild(regionToggle);
 
-            if (GROUP_BY_REGION) {
-                var groups = {};
-                estateNames.forEach(function(n) {
-                    var region = getRegion((data.estate[n] || {}).location);
-                    if (!groups[region]) groups[region] = [];
-                    groups[region].push(n);
-                });
-                var orderedRegions = [];
-                CONTINENTS.forEach(function(c) { if (groups[c]) orderedRegions.push(c); });
-                Object.keys(groups).forEach(function(r) { if (orderedRegions.indexOf(r) === -1) orderedRegions.push(r); });
-                orderedRegions.forEach(function(region) {
-                    var regionTitle = document.createElement('div');
-                    regionTitle.className = 'entity-group-title';
-                    regionTitle.textContent = region;
-                    content.appendChild(regionTitle);
-                    appendBoard('estate', groups[region], data.estate || {});
-                });
+                if (GROUP_BY_REGION) {
+                    var groups = {};
+                    boardEstateNames.forEach(function(n) {
+                        var region = getRegion((data.estate[n] || {}).location);
+                        if (!groups[region]) groups[region] = [];
+                        groups[region].push(n);
+                    });
+                    var orderedRegions = [];
+                    CONTINENTS.forEach(function(c) { if (groups[c]) orderedRegions.push(c); });
+                    Object.keys(groups).forEach(function(r) { if (orderedRegions.indexOf(r) === -1) orderedRegions.push(r); });
+                    orderedRegions.forEach(function(region) {
+                        var regionTitle = document.createElement('div');
+                        regionTitle.className = 'entity-group-title';
+                        regionTitle.textContent = region;
+                        content.appendChild(regionTitle);
+                        appendBoard('estate', groups[region], data.estate || {});
+                    });
+                } else {
+                    appendBoard('estate', boardEstateNames, data.estate || {});
+                }
             } else {
-                appendBoard('estate', estateNames, data.estate || {});
+                appendBoard('estate', boardEstateNames, data.estate || {});
             }
         } else {
             content.appendChild(buildEmptyHint('暂无家产...'));
