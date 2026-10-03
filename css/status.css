@@ -1659,3 +1659,85 @@ body {
     text-align: center;
     padding: 1rem 0;
 }
+
+/* =====================================================================
+ * 本子世界：世界观调整（第 2 页）／特殊规则（第 3 页）／角色状态（第 4 页）
+ * 说明：下面的 .fh1-* 是从前端「世界观」界面搬过来的同一套类名，
+ *       这样两边的条目/小标题带样式一致；状态栏原本没有 .fh1- 前缀，不会撞名。
+ * ===================================================================== */
+.wv-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.wv-title { font-size: 1.05rem; font-weight: bold; color: var(--color-primary-dark); letter-spacing: 2px; }
+.wv-cur { font-size: 0.8rem; color: var(--color-accent); }
+.wv-cards { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.wv-card {
+    padding: 5px 14px; font-size: 0.86rem; color: #6b4b1f;
+    background: #fdf6e3; border: 1px solid var(--color-border); border-radius: 999px; cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.wv-card:hover { background: rgba(212, 175, 55, 0.25); }
+.wv-card.active { background: var(--color-primary-dark); border-color: var(--color-primary-dark); color: #fff; font-weight: bold; }
+.wv-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.wv-edit { display: flex; align-items: center; gap: 6px; font-size: 0.86rem; color: var(--color-text-dark); cursor: pointer; }
+.wv-apply {
+    padding: 6px 18px; font-family: inherit; font-size: 0.88rem; font-weight: bold; letter-spacing: 1px;
+    color: #fff; background: linear-gradient(135deg, #b8860b 0%, #8b6b00 100%);
+    border: 1px solid var(--color-primary-dark); border-radius: 8px; cursor: pointer;
+}
+.wv-apply:hover { background: linear-gradient(135deg, #d4af37 0%, #a17f00 100%); }
+.wv-err { margin-top: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--color-delete); }
+.wv-note { font-size: 0.82rem; line-height: 1.7; color: var(--color-accent); }
+.wv-note code { background: rgba(212, 175, 55, 0.18); padding: 0 4px; border-radius: 4px; }
+.wv-char { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 8px; background: rgba(212, 175, 55, 0.06); }
+.wv-char-name { font-size: 0.9rem; font-weight: bold; color: var(--color-primary-dark); margin-bottom: 4px; }
+.wv-char-line { font-size: 0.82rem; line-height: 1.7; color: var(--color-text-dark); }
+
+/* 段落 / 条目（与前端一致） */
+.fh1-wv-seg { margin-bottom: 14px; }
+.fh1-wv-seg-title {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    font-size: 0.98rem; font-weight: bold; color: var(--color-primary-dark); letter-spacing: 2px;
+    padding-bottom: 4px; margin-bottom: 7px; border-bottom: 1px dashed rgba(184, 134, 11, 0.45);
+}
+.fh1-wv-item-row { display: flex; align-items: flex-start; gap: 6px; }
+.fh1-wv-item-row .fh1-wv-item { flex: 1; min-width: 0; }
+.fh1-wv-item { position: relative; font-size: 0.88rem; line-height: 1.75; color: var(--color-text-dark); padding-left: 14px; }
+.fh1-wv-item::before { content: '\00B7'; position: absolute; left: 3px; color: var(--color-primary-dark); font-weight: bold; }
+.fh1-item-del {
+    flex-shrink: 0; width: 22px; height: 22px; margin-top: 2px; line-height: 1;
+    font-family: inherit; font-size: 0.8rem; border: 1px solid rgba(128, 0, 32, 0.5);
+    border-radius: 4px; background: rgba(128, 0, 32, 0.12); color: var(--color-delete); cursor: pointer;
+}
+.fh1-item-del:hover { background: var(--color-delete); color: #fff; }
+.fh1-hint { font-size: 0.82rem; color: var(--color-accent); font-style: italic; }
+
+/* 小标题带 */
+.fh1-sub-strip { display: flex; align-items: center; gap: 4px; margin: 6px 0 8px 0; }
+.fh1-sub-arrow {
+    flex-shrink: 0; width: 20px; text-align: center; font-size: 1.1rem; line-height: 1.2;
+    color: var(--color-accent); background: rgba(253, 246, 227, 0.7);
+    border: 1px solid var(--color-border); border-radius: 5px; cursor: pointer; user-select: none;
+}
+.fh1-sub-arrow:hover { background: var(--color-primary-dark); border-color: var(--color-primary-dark); color: #fff; }
+.fh1-sub-track {
+    flex: 1; min-width: 0; position: relative; display: flex; flex-wrap: nowrap; gap: 6px;
+    overflow-x: auto; overflow-y: hidden; white-space: nowrap; cursor: grab;
+    scrollbar-width: none; -ms-overflow-style: none;
+}
+.fh1-sub-track::-webkit-scrollbar { height: 0; }
+.fh1-sub-track.grabbing { cursor: grabbing; }
+.fh1-sub-chip {
+    flex: 0 0 auto; padding: 3px 12px; font-size: 0.8rem; color: #6b4b1f; background: #fdf6e3;
+    border: 1px solid var(--color-border); border-radius: 999px; cursor: pointer; white-space: nowrap; user-select: none;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.fh1-sub-chip:hover { background: rgba(212, 175, 55, 0.25); }
+.fh1-sub-chip.active { background: var(--color-primary-dark); border-color: var(--color-primary-dark); color: #fff; font-weight: bold; }
+.fh1-sub-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px 0; }
+.fh1-sub-add, .fh1-sub-del {
+    flex-shrink: 0; padding: 1px 8px; font-family: inherit; font-size: 0.7rem; line-height: 1.6;
+    border-radius: 999px; cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.fh1-sub-add { color: #6b4b1f; background: #fdf6e3; border: 1px dashed var(--color-border); }
+.fh1-sub-add:hover { background: var(--color-primary-dark); border-color: var(--color-primary-dark); color: #fff; }
+.fh1-sub-del { color: var(--color-delete); background: #fdf6e3; border: 1px dashed rgba(128, 0, 32, 0.55); }
+.fh1-sub-del:hover { background: var(--color-delete); border-color: var(--color-delete); color: #fff; }

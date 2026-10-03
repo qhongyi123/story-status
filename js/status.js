@@ -33,7 +33,7 @@ var STATUS_WORLDVIEWS = {
         ['relationship'],   // 第 4 页
         ['region']          // 第 5 页
     ]},
-    western:  { name: '西部',     pages: [] },  // TODO 待定变量区块
+    hentai:   { name: '本子',     pages: [['worldview'], ['ability'], ['character']] },  // TODO 阶段4 待实现渲染器（世界观 / 特殊能力 / 角色状态）
     xianxia:  { name: '东方修仙', pages: [] },  // TODO 待定变量区块
     magic:    { name: '西方魔法', pages: [] }   // TODO 待定变量区块
 };
@@ -2106,7 +2106,7 @@ function collectNeedyEstateLeaves(name, estate, out, visiting) {
     return out;
 }
 
-// 递归计算地块显示尺寸：叶子用自身 scale；容器 = 子孙在 4 列内装箱的包围盒（4 × 行数）
+// 递归计算地块显示尺寸：叶子用自身 scale；容器 = 自身下限与子孙装箱包围盒取较大值（可被内部撑大、不能小于自身；优先撑宽到 4 再向下）
 function plotTreeSize(name, estate, cache, visiting) {
     cache = cache || {};
     visiting = visiting || {};
@@ -2114,9 +2114,10 @@ function plotTreeSize(name, estate, cache, visiting) {
     if (visiting[name]) { cache[name] = estateSize(estate[name] || {}); return cache[name]; }
     visiting[name] = true;
     var children = childrenOfEstate(name, estate);
+    var selfSize = estateSize(estate[name] || {});
     var size;
     if (!children.length) {
-        size = estateSize(estate[name] || {});
+        size = selfSize;
     } else {
         var items = children.map(function(c) {
             var s = plotTreeSize(c, estate, cache, visiting);
@@ -2125,7 +2126,8 @@ function plotTreeSize(name, estate, cache, visiting) {
         var layout = layoutItems(items);
         var rows = 0;
         layout.forEach(function(it) { if (it.row + it.h > rows) rows = it.row + it.h; });
-        size = { w: 4, h: rows || 1 };
+        var innerH = rows || 1;
+        size = { w: Math.max(selfSize.w, 4), h: Math.max(selfSize.h, innerH) };
     }
     delete visiting[name];
     cache[name] = size;
@@ -3232,38 +3234,49 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (el) { el.style.display = hasAny ? '' : 'none'; }
                 if (!hasAny) return;
 
+                // 本子世界没有金币/财富变量 → 传空串，让小挂件里不出现「财富」这一项
+                var wv = (App.state.parsedData && App.state.parsedData.worldview) || '';
+                var wealthText = (wv === 'hentai') ? '' : formatWealth(gold, wealth);
+
                 App.state.worldInfoValues = {
                     date: world.date || '',
                     position: world.position || '',
                     time: formatTime(world.time),
-                    wealth: formatWealth(gold, wealth)
+                    wealth: wealthText
                 };
                 App.ui.renderWorldInfoWidget();
             },
 
             // 渲染可折叠彩灯组件：置顶项 + 其余项 + 排序选择器
+            // 值为空的项目直接不显示（例：本子世界没有财富/金币变量，就不出现「财富」这一项）
             renderWorldInfoWidget: function() {
                 var top = App.elements.containers.worldInfoTop;
                 var expand = App.elements.containers.worldInfoExpand;
                 if (!top || !expand) return;
-                var topKey = App.uiStateConfig.data.worldInfoTop || 'date';
                 var values = App.state.worldInfoValues || {};
 
-                var topItem = WIB_ITEMS[0];
-                WIB_ITEMS.forEach(function(it) { if (it.key === topKey) topItem = it; });
+                var items = WIB_ITEMS.filter(function(it) {
+                    var v = values[it.key];
+                    return v !== undefined && v !== null && String(v).trim() !== '';
+                });
+                if (!items.length) items = [WIB_ITEMS[0]];
+
+                var topKey = App.uiStateConfig.data.worldInfoTop || 'date';
+                var topItem = items[0];
+                items.forEach(function(it) { if (it.key === topKey) topItem = it; });
 
                 top.innerHTML = '<span class="wib-top-label">' + topItem.label + '</span>' +
                     '<span class="wib-top-value">' + (values[topItem.key] || '') + '</span>' +
                     '<span class="wib-arrow">\u25BE</span>';
 
                 var html = '';
-                WIB_ITEMS.forEach(function(it) {
-                    if (it.key === topKey) return;
+                items.forEach(function(it) {
+                    if (it.key === topItem.key) return;
                     html += '<div class="wib-item"><span class="wib-item-label">' + it.label + '</span><span class="wib-item-value">' + (values[it.key] || '') + '</span></div>';
                 });
                 html += '<div class="wib-picker"><span class="wib-picker-title">置顶</span>';
-                WIB_ITEMS.forEach(function(it) {
-                    html += '<label class="wib-picker-opt"><input type="radio" name="wib-top-pick" value="' + it.key + '"' + (it.key === topKey ? ' checked' : '') + '>' + it.label + '</label>';
+                items.forEach(function(it) {
+                    html += '<label class="wib-picker-opt"><input type="radio" name="wib-top-pick" value="' + it.key + '"' + (it.key === topItem.key ? ' checked' : '') + '>' + it.label + '</label>';
                 });
                 html += '</div>';
                 expand.innerHTML = html;
@@ -3913,6 +3926,448 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch(error) { console.error("数据加载时发生错误:", error); }
         }
     };
+    /* =====================================================================
+     * 本子世界：世界观调整（第 2 页）／特殊规则（第 3 页）／角色状态（第 4 页）
+     * ---------------------------------------------------------------------
+     * 世界观调整：读世界书 uid 54（世界观正文）＋ uid 69（社会生态），
+     *   既可整套切换（预置来自 window.WORLDVIEW_PRESETS），也可逐条改／删／加子项，
+     *   点「应用」写回 uid 54／69／28（变量规则，取预置里同名世界观的 varRulesFree）。
+     * 特殊规则／角色状态：本轮只搭框架（渲染器已注册、变量已定），内容后续再做。
+     * ===================================================================== */
+    (function () {
+        var UID_WORLD = 54, UID_ECO = 69, UID_VARRULES = 28;
+        var LABELS = { '世界风格': '风格', '社会与法治': '社会与法治', '民俗风情': '民俗风情' };
+        var st = { draft: null, source: '', editing: false, ecoSel: 0, err: '', busy: false, loadedOnce: false };
+        var cachedHost = null;
+
+        /* ---------- 世界书读写（优先新 API，退回旧接口） ---------- */
+        function hostList() {
+            var out = [];
+            try { out.push(window); } catch (e) {}
+            try { if (window.parent && window.parent !== window) out.push(window.parent); } catch (e) {}
+            try { if (window.top && out.indexOf(window.top) === -1) out.push(window.top); } catch (e) {}
+            return out;
+        }
+        function pickHost() {
+            if (cachedHost) return cachedHost;
+            var hs = hostList();
+            for (var i = 0; i < hs.length; i++) {
+                var w = hs[i];
+                try {
+                    if (w.TavernHelper) { cachedHost = w.TavernHelper; return cachedHost; }
+                    if (typeof w.updateWorldbookWith === 'function') { cachedHost = w; return cachedHost; }
+                    if (typeof w.getLorebookEntries === 'function') { cachedHost = w; return cachedHost; }
+                } catch (e) {}
+            }
+            return null;
+        }
+        function bookName(h) {
+            try {
+                if (h && typeof h.getCharWorldbookNames === 'function') {
+                    var c = h.getCharWorldbookNames('current');
+                    if (c && c.primary) return c.primary;
+                }
+            } catch (e) {}
+            return '千叶的睡前小故事';
+        }
+        async function readEntry(uid) {
+            var h = pickHost(); if (!h) return '';
+            var name = bookName(h);
+            try {
+                if (typeof h.getWorldbook === 'function') {
+                    var arr = await h.getWorldbook(name), hit = '';
+                    (arr || []).forEach(function (e) { if (String(e.uid) === String(uid)) hit = e.content || ''; });
+                    return hit;
+                }
+            } catch (e) {}
+            try {
+                if (typeof h.getLorebookEntries === 'function') {
+                    var es = await h.getLorebookEntries(name, { fields: ['uid', 'content'] }), hit2 = '';
+                    (es || []).forEach(function (e) { if (String(e.uid) === String(uid)) hit2 = e.content || ''; });
+                    return hit2;
+                }
+            } catch (e) {}
+            return '';
+        }
+        async function writeEntry(uid, content) {
+            var h = pickHost();
+            if (!h) return { ok: false, msg: '没找到世界书接口（Tavern Helper / 兼容脚本不可用）' };
+            var name = bookName(h);
+            if (typeof h.updateWorldbookWith === 'function') {
+                try {
+                    await h.updateWorldbookWith(name, function (wb) {
+                        var arr = Array.isArray(wb) ? wb : [], hit = false;
+                        var out = arr.map(function (e) {
+                            if (String(e && e.uid) === String(uid)) {
+                                hit = true;
+                                var c = {}; for (var k in e) { if (Object.prototype.hasOwnProperty.call(e, k)) c[k] = e[k]; }
+                                c.content = content; return c;
+                            }
+                            return e;
+                        });
+                        if (!hit) throw new Error('世界书里没有 uid ' + uid);
+                        return out;
+                    }, { render: 'debounced' });
+                    return { ok: true, msg: 'updateWorldbookWith' };
+                } catch (e) { console.warn('状态栏·世界观页：updateWorldbookWith 失败，改试旧接口', e); }
+            }
+            if (typeof h.setLorebookEntries === 'function') {
+                try { await h.setLorebookEntries(name, [{ uid: uid, content: content }]); return { ok: true, msg: 'setLorebookEntries' }; }
+                catch (e) { return { ok: false, msg: 'setLorebookEntries 抛错：' + ((e && e.message) || e) }; }
+            }
+            return { ok: false, msg: '可用接口不支持写入条目 content' };
+        }
+
+        /* ---------- 解析 / 拼装（规则与前端 fh1Assemble、生成脚本完全一致） ---------- */
+        function normItem(t) { var s = String(t == null ? '' : t).trim(); return s.charAt(0) === '-' ? s : '- ' + s; }
+        function isBlank(t) { return String(t == null ? '' : t).replace(/^-\s*/, '').trim() === ''; }
+        function parseWorldText(text) {
+            var d = { name: '', segments: [], background: [] };
+            var t = String(text || '').replace(/\r\n/g, '\n');
+            if (!t) return d;
+            var mm = /<本子>([\s\S]*?)<\/本子>/.exec(t);
+            var bgm = /<背景设定>([\s\S]*?)<\/背景设定>/.exec(t);
+            var cur = null;
+            (mm ? mm[1] : t).split('\n').forEach(function (line) {
+                var s = line.trim();
+                if (/^##\s+/.test(s)) { cur = { key: s.replace(/^##\s+/, '').trim(), items: [] }; d.segments.push(cur); return; }
+                if (!cur) return;
+                if (s === '---' || /^#/.test(s)) return;
+                var lb = /^(风格|社会与法治|民俗风情)：(.+)$/.exec(s);
+                if (lb) { d.name = lb[2].trim(); return; }
+                if (/^-\s?/.test(s)) cur.items.push(normItem(s));
+            });
+            var curG = null;
+            (bgm ? bgm[1] : '').split('\n').forEach(function (line) {
+                var s = line.trim();
+                if (/^#\s+/.test(s)) { if (!d.name) d.name = s.replace(/^#\s+/, '').trim(); return; }
+                if (/^##\s+/.test(s)) { curG = { title: s.replace(/^##\s+/, '').trim(), items: [] }; d.background.push(curG); return; }
+                if (!curG) return;
+                if (/^-\s?/.test(s)) curG.items.push(normItem(s));
+            });
+            return d;
+        }
+        function parseEcoText(text, wname) {
+            var blocks = [], cur = null;
+            String(text || '').replace(/\r\n/g, '\n').split('\n').forEach(function (line) {
+                var s = line.trim(), m = /^【(.+)】$/.exec(s);
+                if (m) {
+                    var label = m[1];
+                    var title = label.indexOf(wname + '-') === 0 ? label.slice(wname.length + 1) : label;
+                    cur = { label: label, title: title, items: [] };
+                    blocks.push(cur); return;
+                }
+                if (cur && /^-\s?/.test(s)) cur.items.push(normItem(s));
+            });
+            return blocks;
+        }
+        function assembleWorld(d) {
+            var L = ['<本子>', '# 世界观与基调设定', ''];
+            (d.segments || []).forEach(function (s) {
+                L.push('## ' + s.key);
+                var items = (s.items || []).filter(function (t) { return !isBlank(t); });
+                var lab = LABELS[s.key] || null;
+                if (items.length) {
+                    if (lab) { L.push('---'); L.push(lab + '：' + d.name); }
+                    items.forEach(function (t) { L.push(normItem(t)); });
+                    if (lab) { L.push('---'); }
+                }
+                L.push('');
+            });
+            L.push('</本子>', '', '<背景设定>');
+            var bgLines = [];
+            (d.background || []).forEach(function (g) {
+                var items = (g.items || []).filter(function (t) { return !isBlank(t); });
+                if (!items.length) return;
+                bgLines.push('## ' + g.title);
+                items.forEach(function (t) { bgLines.push(normItem(t)); });
+            });
+            if (bgLines.length) { L.push('# ' + d.name); bgLines.forEach(function (x) { L.push(x); }); }
+            L.push('</背景设定>');
+            return L.join('\n');
+        }
+        function assembleEco(d) {
+            var blocks = (d.ecology && d.ecology.blocks) || [];
+            if (!blocks.length) return '';
+            var L = ['<社会生态>'];
+            blocks.forEach(function (b) {
+                L.push('', '【' + b.label + '】');
+                (b.items || []).filter(function (t) { return !isBlank(t); }).forEach(function (t) { L.push(normItem(t)); });
+            });
+            L.push('</社会生态>');
+            return L.join('\n');
+        }
+
+        /* ---------- 数据 ---------- */
+        function presets() { return (window.WORLDVIEW_PRESETS && window.WORLDVIEW_PRESETS.worldviews) || {}; }
+        function order() { return (window.WORLDVIEW_PRESETS && window.WORLDVIEW_PRESETS.order) || []; }
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+        function loadFromPreset(name) {
+            var p = presets()[name]; if (!p) return;
+            st.draft = JSON.parse(JSON.stringify(p));
+            st.source = name; st.ecoSel = 0; st.editing = false; st.err = '';
+        }
+        async function loadFromBook(force) {
+            if (st.loadedOnce && !force) return;
+            st.busy = true;
+            try {
+                var wt = await readEntry(UID_WORLD), et = await readEntry(UID_ECO);
+                if (wt) {
+                    var d = parseWorldText(wt);
+                    d.ecology = { blocks: parseEcoText(et, d.name) };
+                    var p = presets()[d.name];
+                    d.varRulesFree = p ? (p.varRulesFree || '') : '';
+                    st.draft = d; st.source = d.name || ''; st.ecoSel = 0; st.editing = false;
+                } else {
+                    st.draft = null; st.err = '世界书 uid ' + UID_WORLD + ' 还是空的——先在下面选一套世界观，点「应用」写进去。';
+                }
+                st.loadedOnce = true;
+            } catch (e) { st.err = '读取世界书失败：' + ((e && e.message) || e); }
+            st.busy = false;
+        }
+
+        /* ---------- 从 DOM 收回编辑 ---------- */
+        function syncFromDom(container) {
+            var d = st.draft; if (!d) return;
+            container.querySelectorAll('[data-item-text]').forEach(function (el) {
+                var kind = el.getAttribute('data-kind'), i = +el.getAttribute('data-i'), j = +el.getAttribute('data-j');
+                var txt = normItem(el.textContent);
+                if (kind === 'seg' && d.segments[i]) d.segments[i].items[j] = txt;
+                else if (kind === 'bg' && d.background[i]) d.background[i].items[j] = txt;
+                else if (kind === 'eco' && d.ecology && d.ecology.blocks[i]) d.ecology.blocks[i].items[j] = txt;
+            });
+        }
+
+        /* ---------- 渲染 ---------- */
+        function itemRow(kind, i, j, text) {
+            return '<div class="fh1-wv-item-row">' +
+                '<div class="fh1-wv-item"' + (st.editing ? ' contenteditable="true"' : '') +
+                    ' data-item-text data-kind="' + kind + '" data-i="' + i + '" data-j="' + j + '">' + esc(text) + '</div>' +
+                (st.editing ? '<button class="fh1-item-del" data-act="item-del" data-kind="' + kind + '" data-i="' + i + '" data-j="' + j + '" title="删去这一项">\u2715</button>' : '') +
+            '</div>';
+        }
+        function subStrip(kind, titles, sel) {
+            var chips = titles.map(function (t, i) {
+                return '<span class="fh1-sub-chip' + (i === sel ? ' active' : '') + '" data-act="sub-pick" data-kind="' + kind + '" data-i="' + i + '">' + esc(t) + '</span>';
+            }).join('');
+            return '<div class="fh1-sub-strip" data-strip="' + kind + '">' +
+                '<span class="fh1-sub-arrow" data-act="sub-scroll" data-kind="' + kind + '" data-dir="-1">\u2039</span>' +
+                '<div class="fh1-sub-track">' + chips + '</div>' +
+                '<span class="fh1-sub-arrow" data-act="sub-scroll" data-kind="' + kind + '" data-dir="1">\u203A</span>' +
+            '</div>';
+        }
+        function subActions(kind, i, count) {
+            if (!st.editing) return '';
+            return '<div class="fh1-sub-actions">' +
+                '<button class="fh1-sub-add" data-act="sub-add" data-kind="' + kind + '" data-i="' + i + '">\uFF0B 子项</button>' +
+                '<button class="fh1-sub-del" data-act="group-del" data-kind="' + kind + '" data-i="' + i + '">\u2715 删去本标题及子项' + (count ? '（' + count + '）' : '') + '</button>' +
+            '</div>';
+        }
+        function buildHtml() {
+            var d = st.draft;
+            var html = '';
+            // 顶部：整套切换 + 编辑 + 应用
+            html += '<div class="section">';
+            html += '<div class="wv-head"><span class="wv-title">世界观调整</span>' +
+                '<span class="wv-cur">世界书当前：' + esc(st.source || '（空）') + '</span></div>';
+            html += '<div class="wv-cards">' + order().map(function (n) {
+                return '<span class="wv-card' + (n === st.source ? ' active' : '') + '" data-act="pick" data-name="' + esc(n) + '">' + esc(n) + '</span>';
+            }).join('') + '</div>';
+            html += '<div class="wv-bar">' +
+                '<label class="wv-edit"><input type="checkbox" data-act="edit"' + (st.editing ? ' checked' : '') + '>编辑模式</label>' +
+                '<button class="wv-apply" data-act="apply">应用（写入世界书）</button>' +
+                '</div>';
+            if (st.err) html += '<div class="wv-err">' + esc(st.err) + '</div>';
+            html += '</div>';
+            if (!d) return html;
+
+            // 平铺段落
+            (d.segments || []).forEach(function (s, i) {
+                html += '<div class="section"><div class="fh1-wv-seg">' +
+                    '<div class="fh1-wv-seg-title"><span>' + esc(s.key) + '</span></div>' +
+                    ((s.items || []).map(function (t, j) { return itemRow('seg', i, j, t.replace(/^-\s*/, '')); }).join('') ||
+                        '<div class="fh1-hint">（这一段还没有条目）</div>') +
+                    '</div></div>';
+            });
+            // 背景设定（小标题带 + 当前小标题的子项）
+            var bg = d.background || [];
+            html += '<div class="section"><div class="fh1-wv-seg"><div class="fh1-wv-seg-title"><span>背景设定</span></div>';
+            if (bg.length) {
+                var bi = Math.min(Math.max(state_bg(), 0), bg.length - 1);
+                set_bg(bi);
+                html += subStrip('bg', bg.map(function (g) { return g.title; }), bi) +
+                    subActions('bg', bi, (bg[bi].items || []).length) +
+                    ((bg[bi].items || []).map(function (t, j) { return itemRow('bg', bi, j, t.replace(/^-\s*/, '')); }).join('') ||
+                        '<div class="fh1-hint">（这个小标题下还没有子项）</div>');
+            } else {
+                html += '<div class="fh1-hint">（这套世界观还没有背景设定小标题）</div>';
+            }
+            html += '</div></div>';
+            // 社会生态
+            var blocks = (d.ecology && d.ecology.blocks) || [];
+            html += '<div class="section"><div class="fh1-wv-seg"><div class="fh1-wv-seg-title"><span>社会生态</span></div>';
+            if (blocks.length) {
+                var ei = Math.min(Math.max(st.ecoSel | 0, 0), blocks.length - 1);
+                st.ecoSel = ei;
+                html += subStrip('eco', blocks.map(function (b) { return b.title || b.label; }), ei) +
+                    subActions('eco', ei, (blocks[ei].items || []).length) +
+                    ((blocks[ei].items || []).map(function (t, j) { return itemRow('eco', ei, j, t.replace(/^-\s*/, '')); }).join('') ||
+                        '<div class="fh1-hint">（这一块还没有子项）</div>');
+            } else {
+                html += '<div class="fh1-hint">（这套世界观还没有生态内容）</div>';
+            }
+            html += '</div></div>';
+            // 变量规则提示（只读，来自预置）
+            html += '<div class="section"><div class="wv-note">变量规则：随「应用」一起写入 uid ' + UID_VARRULES +
+                '（这套世界观 ' + (d.varRulesFree ? d.varRulesFree.length + ' 字' : '没有变量规则文件，将跳过') + '）</div></div>';
+            return html;
+        }
+        function state_bg() { return (App.state.wvBgSel | 0); }
+        function set_bg(i) { App.state.wvBgSel = i; }
+
+        function renderPage(data, container) {
+            if (!st.loadedOnce && !st.busy) {
+                container.innerHTML = '<div class="section"><div class="wv-note">正在读取世界书…</div></div>';
+                loadFromBook().then(function () { renderPage(data, container); });
+                return;
+            }
+            if (!window.WORLDVIEW_PRESETS) {
+                container.innerHTML = '<div class="section"><div class="wv-err">状态栏侧预置没加载：检查 js/worldview-presets.js</div></div>';
+                return;
+            }
+            container.innerHTML = buildHtml();
+            bind(container);
+            bindTracks(container);
+        }
+
+        // 标题带拖动滑动（每次重画都会产生新元素，所以每次都要重挂）
+        function bindTracks(container) {
+            container.querySelectorAll('.fh1-sub-track').forEach(function (track) {
+                var down = false, startX = 0, startLeft = 0, moved = false;
+                track.addEventListener('mousedown', function (e) {
+                    down = true; moved = false; startX = e.clientX; startLeft = track.scrollLeft;
+                    track.classList.add('grabbing');
+                });
+                track.addEventListener('mousemove', function (e) {
+                    if (!down) return;
+                    var dx = e.clientX - startX;
+                    if (Math.abs(dx) > 3) { moved = true; track.scrollLeft = startLeft - dx; e.preventDefault(); }
+                });
+                var stop = function () { down = false; track.classList.remove('grabbing'); };
+                track.addEventListener('mouseup', stop);
+                track.addEventListener('mouseleave', stop);
+                track.addEventListener('click', function (e) {
+                    if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
+                }, true);
+            });
+        }
+
+        function bind(container) {
+            if (container.getAttribute('data-wv-bound')) return;
+            container.setAttribute('data-wv-bound', '1');
+            container.addEventListener('click', function (ev) {
+                var el = ev.target.closest ? ev.target.closest('[data-act]') : null;
+                if (!el || !container.contains(el)) return;
+                var act = el.getAttribute('data-act'), kind = el.getAttribute('data-kind'), i = +el.getAttribute('data-i');
+                if (act === 'pick') { syncFromDom(container); loadFromPreset(el.getAttribute('data-name')); renderPage(null, container); }
+                else if (act === 'edit') { syncFromDom(container); st.editing = !st.editing; renderPage(null, container); }
+                else if (act === 'apply') { syncFromDom(container); applyAll(container); }
+                else if (act === 'sub-pick') { syncFromDom(container); if (kind === 'eco') st.ecoSel = i; else App.state.wvBgSel = i; renderPage(null, container); }
+                else if (act === 'sub-scroll') {
+                    var track = el.parentElement.querySelector('.fh1-sub-track');
+                    if (track) track.scrollLeft += (+el.getAttribute('data-dir')) * 140;
+                }
+                else if (act === 'sub-add') {
+                    syncFromDom(container);
+                    var g = kind === 'eco' ? (st.draft.ecology.blocks[i]) : (kind === 'bg' ? st.draft.background[i] : st.draft.segments[i]);
+                    if (g) { g.items = (g.items || []).concat(['- ']); }
+                    renderPage(null, container);
+                }
+                else if (act === 'item-del') {
+                    syncFromDom(container);
+                    var j = +el.getAttribute('data-j');
+                    if (kind === 'seg' && st.draft.segments[i]) st.draft.segments[i].items.splice(j, 1);
+                    else if (kind === 'bg' && st.draft.background[i]) st.draft.background[i].items.splice(j, 1);
+                    else if (kind === 'eco' && st.draft.ecology && st.draft.ecology.blocks[i]) st.draft.ecology.blocks[i].items.splice(j, 1);
+                    renderPage(null, container);
+                }
+                else if (act === 'group-del') {
+                    syncFromDom(container);
+                    var arr = kind === 'eco' ? (st.draft.ecology ? st.draft.ecology.blocks : null) : st.draft.background;
+                    if (arr && arr[i]) {
+                        var title = arr[i].title || arr[i].label || '';
+                        if (!window.confirm('删去小标题「' + title + '」及它下面的 ' + ((arr[i].items || []).length) + ' 条子项？')) return;
+                        arr.splice(i, 1);
+                        if (kind === 'eco') st.ecoSel = 0; else App.state.wvBgSel = 0;
+                        renderPage(null, container);
+                    }
+                }
+            });
+        }
+
+        async function applyAll(container) {
+            if (!st.draft) return;
+            if (!st.draft.name) { alert('这套世界观没有名字（正文里缺少「风格：xxx」标签），先补上再应用。'); return; }
+            var ok = window.confirm('把当前内容写入世界书？\n世界观 → uid ' + UID_WORLD +
+                '\n社会生态 → uid ' + UID_ECO +
+                '\n变量规则 → uid ' + UID_VARRULES + (st.draft.varRulesFree ? '' : '（这套没有，跳过）'));
+            if (!ok) return;
+            var r1 = await writeEntry(UID_WORLD, assembleWorld(st.draft));
+            if (!r1.ok) { alert('世界观写入失败：' + r1.msg); return; }
+            var r2 = await writeEntry(UID_ECO, assembleEco(st.draft));
+            if (!r2.ok) { alert('世界观已写入，但生态写入失败：' + r2.msg); return; }
+            if (st.draft.varRulesFree) {
+                var r3 = await writeEntry(UID_VARRULES, st.draft.varRulesFree);
+                if (!r3.ok) { alert('世界观与生态已写入，但变量规则写入失败：' + r3.msg); return; }
+            }
+            st.source = st.draft.name;
+            st.loadedOnce = true;
+            alert('已写入世界书：\n世界观 uid ' + UID_WORLD + '（' + assembleWorld(st.draft).length + ' 字）' +
+                '\n社会生态 uid ' + UID_ECO +
+                (st.draft.varRulesFree ? '\n变量规则 uid ' + UID_VARRULES : ''));
+            renderPage(null, container);
+        }
+
+        /* ---------- 注册三个渲染器 ---------- */
+        SECTION_RENDERERS.worldview = function (data, container) { renderPage(data, container); };
+        // 特殊规则 / 角色状态：本轮只搭框架
+        SECTION_RENDERERS.rules = function (data, container) {
+            var raw = (data && data.raw) || {};
+            var n = raw.rules ? Object.keys(raw.rules).length : 0;
+            container.innerHTML = '<div class="section"><div class="wv-head"><span class="wv-title">特殊规则</span>' +
+                '<span class="wv-cur">已启用 ' + n + ' 条</span></div>' +
+                '<div class="wv-note">框架已就位：数据存在变量 <code>rules</code> 里（只由状态栏写，不写进变量规则，AI 看不到）。' +
+                '规则条目与勾选界面等规则文本做好后再实现。</div></div>';
+        };
+        SECTION_RENDERERS.characters = function (data, container) {
+            var chars = (data && data.raw && data.raw.characters) || {};
+            var names = Object.keys(chars);
+            var html = '<div class="section"><div class="wv-head"><span class="wv-title">角色状态</span>' +
+                '<span class="wv-cur">共 ' + names.length + ' 人</span></div>';
+            if (!names.length) {
+                html += '<div class="wv-note">框架已就位：数据存在变量 <code>characters</code> 里（由 AI 维护）。' +
+                    '界面形式待定，先按变量原样列一遍：</div>';
+            } else {
+                html += '<div class="wv-note">界面形式待定，先按变量原样列出：</div>';
+                names.forEach(function (n) {
+                    var c = chars[n] || {};
+                    html += '<div class="wv-char"><div class="wv-char-name">' + esc(n) + '</div>' +
+                        '<div class="wv-char-line">' + ['gender', 'age', 'role', 'ring', 'state', 'location', 'attitude', 'desc']
+                            .filter(function (k) { return c[k]; })
+                            .map(function (k) { return esc(k) + '：' + esc(c[k]); }).join('　') + '</div></div>';
+                });
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        };
+
+        // 页键：第 2 页世界观调整／第 3 页特殊规则／第 4 页角色状态
+        STATUS_WORLDVIEWS.hentai.pages = [['worldview'], ['rules'], ['characters']];
+    })();
+
     App.init();
     window.STATUS_APP = App;
 });
