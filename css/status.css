@@ -2521,7 +2521,6 @@ body {
 #mode-sections-2 .wv-head { border-bottom: 1px dashed rgba(184, 134, 11, 0.45); }
 #mode-sections-2 .wv-note { color: #8a5a2b; }
 /* 附录抽屉（故事日志面板里）：同样按浅色纸面处理内容区 */
-.story-log-content .fh1-ap-item { color: #3e2723; }
 .story-log-content .fh1-ap-item.added { color: #9c8b74; }
 .story-log-content .fh1-ap-note { color: #8a5a2b; background: rgba(212, 175, 55, 0.10); }
 .story-log-content .rule-input, .story-log-content .wv-apply { margin-top: 8px; }

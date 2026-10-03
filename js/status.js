@@ -4276,14 +4276,10 @@ document.addEventListener('DOMContentLoaded', function() {
         function buildHtml() {
             var d = st.draft;
             var html = '';
-            // 顶部：整套切换 + 编辑 + 应用
+            // 顶部：只有「世界观调整」标题 + 编辑模式（不再显示"世界书当前"，也没有顶部应用按钮）
             html += '<div class="section">';
             html += '<div class="wv-head"><span class="wv-title">世界观调整</span>' +
-                '<span class="wv-cur">世界书当前：' + esc(st.source || '（空）') + '</span></div>';
-            html += '';   // 世界观不可在此切换：只能调整当前世界观内的内容
-            html += '<div class="wv-bar">' +
                 '<label class="wv-edit"><input type="checkbox" data-act="edit"' + (st.editing ? ' checked' : '') + '>编辑模式</label>' +
-                '' +
                 '</div>';
             if (st.err) html += '<div class="wv-err">' + esc(st.err) + '</div>';
             html += '</div>';
@@ -4431,9 +4427,7 @@ document.addEventListener('DOMContentLoaded', function() {
         async function applyAll(container) {
             if (!st.draft) return;
             if (!st.draft.name) { await rvAlert('这套世界观没有名字（正文里缺少「风格：xxx」标签），先补上再应用。'); return; }
-            var ok = await rvConfirm('把当前内容写入世界书？\n世界观 → uid ' + UID_WORLD +
-                '\n社会生态 → uid ' + UID_ECO +
-                '\n变量规则 → uid ' + UID_VARRULES + (st.draft.varRulesFree ? '' : '（这套没有，跳过）'));
+            var ok = await rvConfirm('把当前内容写入世界书？');
             if (!ok) return;
             var r1 = await writeEntry(UID_WORLD, assembleWorld(st.draft));
             if (!r1.ok) { await rvAlert('世界观写入失败：' + r1.msg); return; }
