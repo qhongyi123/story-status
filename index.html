@@ -2,7 +2,6 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<base href="https://qhongyi123.github.io/story-status/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>角色状态面板 - Bookmark Pagination</title>
 <link rel="stylesheet" href="css/status.css">
@@ -192,6 +191,9 @@
         </div>
     </div>
 
+    <!-- 本子世界世界观预置（由 工具/生成世界观预置.ps1 生成）：
+         必须排在 status.js 之前，否则第 2 页「世界观调整」读不到 window.WORLDVIEW_PRESETS -->
+    <script src="js/worldview-presets.js"></script>
     <!-- 本地预览演示数据（上线/上传用户端前删除下面这一行） -->
     <script src="demo/demo-data.js"></script>
     <script src="js/status.js"></script>

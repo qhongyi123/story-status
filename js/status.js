@@ -4235,7 +4235,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             if (!window.WORLDVIEW_PRESETS) {
-                container.innerHTML = '<div class="section"><div class="wv-err">状态栏侧预置没加载：检查 js/worldview-presets.js</div></div>';
+                container.innerHTML = '<div class="section">' +
+                    '<div class="wv-err">状态栏侧预置没加载：请确认 <code>js/worldview-presets.js</code> 已上传，' +
+                    '并且 <code>index.html</code> 里有这一行、且排在 <code>js/status.js</code> 之前：<br>' +
+                    '<code>&lt;script src="js/worldview-presets.js"&gt;&lt;/script&gt;</code></div>' +
+                    '<div class="wv-bar"><button class="wv-apply" data-act="retry">重新读取</button></div>' +
+                '</div>';
+                container.setAttribute('data-wv-bound', '');
+                bind(container);
                 return;
             }
             container.innerHTML = buildHtml();
@@ -4273,6 +4280,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!el || !container.contains(el)) return;
                 var act = el.getAttribute('data-act'), kind = el.getAttribute('data-kind'), i = +el.getAttribute('data-i');
                 if (act === 'pick') { syncFromDom(container); loadFromPreset(el.getAttribute('data-name')); renderPage(null, container); }
+                else if (act === 'retry') { renderPage(null, container); }
                 else if (act === 'edit') { syncFromDom(container); st.editing = !st.editing; renderPage(null, container); }
                 else if (act === 'apply') { syncFromDom(container); applyAll(container); }
                 else if (act === 'sub-pick') { syncFromDom(container); if (kind === 'eco') st.ecoSel = i; else App.state.wvBgSel = i; renderPage(null, container); }
