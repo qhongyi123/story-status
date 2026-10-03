@@ -4341,15 +4341,124 @@ document.addEventListener('DOMContentLoaded', function() {
 
         /* ---------- 注册三个渲染器 ---------- */
         SECTION_RENDERERS.worldview = function (data, container) { renderPage(data, container); };
-        // 特殊规则 / 角色状态：本轮只搭框架
-        SECTION_RENDERERS.rules = function (data, container) {
-            var raw = (data && data.raw) || {};
-            var n = raw.rules ? Object.keys(raw.rules).length : 0;
-            container.innerHTML = '<div class="section"><div class="wv-head"><span class="wv-title">特殊规则</span>' +
-                '<span class="wv-cur">已启用 ' + n + ' 条</span></div>' +
-                '<div class="wv-note">框架已就位：数据存在变量 <code>rules</code> 里（只由状态栏写，不写进变量规则，AI 看不到）。' +
-                '规则条目与勾选界面等规则文本做好后再实现。</div></div>';
-        };
+        /* ---------- 第 3 页：特殊规则（数据在变量 rules 里，只由状态栏写；AI 看不到） ---------- */
+        function rulesVar() { var raw = (App.state.parsedData && App.state.parsedData.raw) || {}; return raw.rules || {}; }
+        function rulePresets() { return (window.RULES_PRESETS && window.RULES_PRESETS.rules) || []; }
+
+        async function rulesWrite(act, payload) {
+            try {
+                if (typeof window.eventEmit !== 'function') { alert('eventEmit 不可用，无法写入变量'); return false; }
+                window.eventEmit('era:' + act + 'ByObject', payload);
+                await new Promise(function (r) { setTimeout(r, 300); });  // 等变量落盘
+                return true;
+            } catch (e) { alert('写入变量失败：' + ((e && e.message) || e)); return false; }
+        }
+        async function rulesRefresh(container) {
+            try {
+                var raw = await App.parsers.getVariableData();
+                App.state.parsedData = App.parsers.parseData(raw);
+            } catch (e) { console.warn('刷新变量失败', e); }
+            renderRules(container);
+        }
+
+        function renderRules(container) {
+            var R = rulesVar(), presets = rulePresets(), names = Object.keys(R);
+            var html = '<div class="section"><div class="wv-head"><span class="wv-title">特殊规则</span>' +
+                '<span class="wv-cur">已启用 ' + names.length + ' 条' +
+                '<button class="wv-refresh" data-rules-act="refresh" title="重新读取变量（新加的常识会立刻出现）">\u21BB 刷新</button>' +
+                '</span></div>';
+            if (!presets.length) {
+                html += '<div class="wv-err">规则预置没加载：确认 <code>js/rules-presets.js</code> 已上传，' +
+                    '且 <code>index.html</code> 里有它、排在 <code>js/status.js</code> 之前。</div>';
+            }
+            presets.forEach(function (p) {
+                var v = R[p.name], on = (v !== undefined);
+                var hasModes = !!(p.modes && p.modes.length);
+                html += '<div class="rule-row' + (on ? ' on' : '') + '">';
+                html += '<label class="rule-head"><input type="checkbox" data-rules-act="toggle" data-name="' + esc(p.name) + '"' + (on ? ' checked' : '') + '>' +
+                    '<span class="rule-name">' + esc(p.name) + '</span></label>';
+                if (p.intro) html += '<div class="rule-intro">' + esc(p.intro) + '</div>';
+                if (hasModes && on) {
+                    html += '<div class="rule-modes">' + p.modes.map(function (m) {
+                        var sel = (v && v.模式 === m);
+                        return '<label class="rule-mode"><input type="radio" name="rm-' + esc(p.name) + '" data-rules-act="mode" data-name="' + esc(p.name) + '" data-mode="' + esc(m) + '"' + (sel ? ' checked' : '') + '>' + esc(m) + '</label>';
+                    }).join('') + '</div>';
+                }
+                if (p.fill) {
+                    html += '<div class="rule-fillbar">' +
+                        '<input type="text" class="rule-input" data-rules-input="' + esc(p.name) + '" placeholder="' + esc(p.fill) + '">' +
+                        '<button class="rule-add" data-rules-act="add-entry" data-name="' + esc(p.name) + '">添加</button></div>';
+                    var ks = on ? Object.keys(v).filter(function (k) { return k !== '模式'; }) : [];
+                    if (ks.length) {
+                        html += '<div class="rule-entries">' + ks.map(function (k) {
+                            return '<div class="rule-entry"><span class="rule-entry-text">' + esc(k) + '</span>' +
+                                '<button class="rule-mini" data-rules-act="edit-entry" data-name="' + esc(p.name) + '" data-text="' + esc(k) + '">编辑</button>' +
+                                '<button class="rule-mini del" data-rules-act="del-entry" data-name="' + esc(p.name) + '" data-text="' + esc(k) + '">删除</button></div>';
+                        }).join('') + '</div>';
+                    }
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+            container.innerHTML = html;
+            bindRules(container);
+        }
+
+        function bindRules(container) {
+            if (container.getAttribute('data-rules-bound')) return;
+            container.setAttribute('data-rules-bound', '1');
+            container.addEventListener('click', async function (ev) {
+                var el = ev.target.closest ? ev.target.closest('[data-rules-act]') : null;
+                if (!el || !container.contains(el)) return;
+                var act = el.getAttribute('data-rules-act'), name = el.getAttribute('data-name') || '';
+                var R = rulesVar(), cur = R[name];
+                var preset = null; rulePresets().forEach(function (p) { if (p.name === name) preset = p; });
+
+                if (act === 'refresh') { await rulesRefresh(container); return; }
+
+                if (act === 'toggle') {
+                    if (cur !== undefined) {
+                        if (!window.confirm('取消「' + name + '」？')) { renderRules(container); return; }
+                        if (await rulesWrite('delete', { rules: (function () { var o = {}; o[name] = {}; return o; })() })) await rulesRefresh(container);
+                    } else {
+                        if (preset && preset.modes && preset.modes.length) { alert('「' + name + '」需要先选一个模式才生效'); renderRules(container); return; }
+                        if (preset && preset.fill) { alert('「' + name + '」需要先在框里填内容，再点「添加」'); renderRules(container); return; }
+                        if (await rulesWrite('insert', { rules: (function () { var o = {}; o[name] = {}; return o; })() })) await rulesRefresh(container);
+                    }
+                    return;
+                }
+                if (act === 'mode') {
+                    var mode = el.getAttribute('data-mode');
+                    var payload = { rules: (function () { var o = {}; o[name] = { '模式': mode }; return o; })() };
+                    var okM = (cur === undefined) ? await rulesWrite('insert', payload) : await rulesWrite('update', payload);
+                    if (okM) await rulesRefresh(container);
+                    return;
+                }
+                if (act === 'add-entry' || act === 'edit-entry') {
+                    var box = container.querySelector('[data-rules-input="' + name + '"]');
+                    var text = (act === 'add-entry') ? (box ? String(box.value || '').trim() : '') : (el.getAttribute('data-text') || '');
+                    if (act === 'edit-entry') { var nv = window.prompt('修改这条：', text); if (nv === null) return; text = String(nv).trim(); if (text === (el.getAttribute('data-text') || '')) return; }
+                    if (!text) { alert('先填内容'); return; }
+                    if (act === 'edit-entry') {
+                        var delPay = { rules: (function () { var o = {}; var inner = {}; inner[el.getAttribute('data-text')] = {}; o[name] = inner; return o; })() };
+                        if (!(await rulesWrite('delete', delPay))) return;
+                    }
+                    var inner2 = {}; inner2[text] = {};
+                    var pay2 = { rules: (function () { var o = {}; o[name] = inner2; return o; })() };
+                    var okE = (cur === undefined) ? await rulesWrite('insert', pay2) : await rulesWrite('insert', pay2);
+                    if (okE) { if (box) box.value = ''; await rulesRefresh(container); }
+                    return;
+                }
+                if (act === 'del-entry') {
+                    if (!window.confirm('删掉这条常识？\n' + (el.getAttribute('data-text') || ''))) return;
+                    var innerD = {}; innerD[el.getAttribute('data-text')] = {};
+                    var payD = { rules: (function () { var o = {}; o[name] = innerD; return o; })() };
+                    if (await rulesWrite('delete', payD)) await rulesRefresh(container);
+                    return;
+                }
+            });
+        }
+        SECTION_RENDERERS.rules = function (data, container) { renderRules(container); };
         SECTION_RENDERERS.characters = function (data, container) {
             var chars = (data && data.raw && data.raw.characters) || {};
             var names = Object.keys(chars);
