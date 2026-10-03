@@ -1785,3 +1785,33 @@ body {
 .rule-mini:hover { background: var(--color-primary-dark); border-color: var(--color-primary-dark); color: #fff; }
 .rule-mini.del { color: var(--color-delete); border-color: rgba(128, 0, 32, 0.5); }
 .rule-mini.del:hover { background: var(--color-delete); border-color: var(--color-delete); color: #fff; }
+
+/* ===== 第 3 页特殊规则：默认只显示规则名的卡片，点开才拉出正文 ===== */
+.rule-card {
+    margin: 10px 0; border: 1px solid var(--color-border); border-radius: 10px;
+    background: rgba(212, 175, 55, 0.05); overflow: hidden;
+}
+.rule-card.on { border-color: var(--color-primary-dark); background: rgba(212, 175, 55, 0.13); }
+.rule-card.open { box-shadow: 0 3px 10px rgba(0, 0, 0, 0.10); }
+.rule-card-head {
+    display: flex; align-items: center; gap: 10px;
+    min-height: 58px; padding: 12px 14px; cursor: pointer;   /* 名字区占卡片一半以上 */
+}
+.rule-card-head:hover { background: rgba(212, 175, 55, 0.12); }
+.rule-card-name {
+    flex: 1; min-width: 0; font-size: 1.12rem; font-weight: bold;
+    color: var(--color-primary-dark); letter-spacing: 1px; word-break: break-word;
+}
+.rule-card-on {
+    flex-shrink: 0; font-size: 0.72rem; color: #fff;
+    background: var(--color-primary-dark); border-radius: 999px; padding: 1px 9px;
+}
+.rule-card-arrow { flex-shrink: 0; font-size: 0.9rem; color: var(--color-accent); }
+.rule-card-body { padding: 2px 14px 12px 14px; border-top: 1px dashed rgba(184, 134, 11, 0.35); }
+.rule-enable {
+    display: flex; align-items: center; gap: 6px; margin: 10px 0 0 0;
+    font-size: 0.86rem; color: var(--color-text-dark); cursor: pointer;
+}
+.rule-enable input { accent-color: var(--color-primary-dark); }
+.rule-card-body .rule-intro { margin-left: 0; }
+.rule-card-body .rule-modes, .rule-card-body .rule-fillbar, .rule-card-body .rule-entries { margin-left: 0; }

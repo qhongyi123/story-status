@@ -4361,6 +4361,8 @@ document.addEventListener('DOMContentLoaded', function() {
             renderRules(container);
         }
 
+        var rulesOpen = {};   // 哪几张规则卡被展开了（重画后保留）
+
         function renderRules(container) {
             var R = rulesVar(), presets = rulePresets(), names = Object.keys(R);
             var html = '<div class="section"><div class="wv-head"><span class="wv-title">特殊规则</span>' +
@@ -4372,13 +4374,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     '且 <code>index.html</code> 里有它、排在 <code>js/status.js</code> 之前。</div>';
             }
             presets.forEach(function (p) {
-                var v = R[p.name], on = (v !== undefined);
+                var v = R[p.name], on = (v !== undefined), open = !!rulesOpen[p.name];
                 var hasModes = !!(p.modes && p.modes.length);
-                html += '<div class="rule-row' + (on ? ' on' : '') + '">';
-                html += '<label class="rule-head"><input type="checkbox" data-rules-act="toggle" data-name="' + esc(p.name) + '"' + (on ? ' checked' : '') + '>' +
-                    '<span class="rule-name">' + esc(p.name) + '</span></label>';
+                html += '<div class="rule-card' + (on ? ' on' : '') + (open ? ' open' : '') + '">';
+                // 卡头：默认只显示规则名（点击展开）
+                html += '<div class="rule-card-head" data-rules-act="expand" data-name="' + esc(p.name) + '">' +
+                    '<span class="rule-card-name">' + esc(p.name) + '</span>' +
+                    (on ? '<span class="rule-card-on">已启用</span>' : '') +
+                    '<span class="rule-card-arrow">' + (open ? '\u25BE' : '\u25B8') + '</span>' +
+                '</div>';
+                if (!open) { html += '</div>'; return; }
+                // 展开后：简介 + 勾选框 + 模式（有才显示）+ 填写框
+                html += '<div class="rule-card-body">';
                 if (p.intro) html += '<div class="rule-intro">' + esc(p.intro) + '</div>';
-                if (hasModes && on) {
+                html += '<label class="rule-enable"><input type="checkbox" data-rules-act="toggle" data-name="' + esc(p.name) + '"' +
+                    (on ? ' checked' : '') + '>启用这条规则</label>';
+                if (hasModes) {
                     html += '<div class="rule-modes">' + p.modes.map(function (m) {
                         var sel = (v && v.模式 === m);
                         return '<label class="rule-mode"><input type="radio" name="rm-' + esc(p.name) + '" data-rules-act="mode" data-name="' + esc(p.name) + '" data-mode="' + esc(m) + '"' + (sel ? ' checked' : '') + '>' + esc(m) + '</label>';
@@ -4397,7 +4408,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }).join('') + '</div>';
                     }
                 }
-                html += '</div>';
+                html += '</div></div>';
             });
             html += '</div>';
             container.innerHTML = html;
@@ -4415,6 +4426,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 var preset = null; rulePresets().forEach(function (p) { if (p.name === name) preset = p; });
 
                 if (act === 'refresh') { await rulesRefresh(container); return; }
+
+                // 点卡片头 → 从下方拉出/收起（默认只显示规则名）
+                if (act === 'expand') { rulesOpen[name] = !rulesOpen[name]; renderRules(container); return; }
 
                 if (act === 'toggle') {
                     if (cur !== undefined) {
