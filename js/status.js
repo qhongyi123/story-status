@@ -4166,6 +4166,111 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<button class="fh1-sub-del" data-act="group-del" data-kind="' + kind + '" data-i="' + i + '">\u2715 删去本标题及子项' + (count ? '（' + count + '）' : '') + '</button>' +
             '</div>';
         }
+        /* ---------- 附录抽屉：复用「故事日志」面板框架 ---------- */
+        function ensureGroup(segKey, title) {
+            var d = st.draft; if (!d) return null;
+            if (segKey === '背景设定') {
+                d.background = d.background || [];
+                var g = null; d.background.forEach(function (x) { if (x.title === title) g = x; });
+                if (!g) { g = { title: title, items: [] }; d.background.push(g); }
+                return g;
+            }
+            if (segKey === '社会生态') {
+                d.ecology = d.ecology || { blocks: [] };
+                d.ecology.blocks = d.ecology.blocks || [];
+                var b = null; d.ecology.blocks.forEach(function (x) { if ((x.title || x.label) === title) b = x; });
+                if (!b) { b = { label: (d.name || '') + '-' + title, title: title, items: [] }; d.ecology.blocks.push(b); }
+                return b;
+            }
+            var seg = null; (d.segments || []).forEach(function (s) { if (s.key === segKey) seg = s; });
+            return seg;
+        }
+        function apBoxes(items, hasMap, gtitle) {
+            if (!items || !items.length) return '<div class="fh1-ap-empty">（没有附录内容）</div>';
+            return items.map(function (t) {
+                var text = String(t).replace(/^-\s*/, '').trim(), added = !!hasMap[text];
+                return '<label class="fh1-ap-item' + (added ? ' added' : '') + '">' +
+                    '<input type="checkbox" value="' + esc(text) + '" data-ap-g="' + esc(gtitle || '') + '"' + (added ? ' disabled checked' : '') + '>' +
+                    '<span>' + esc(text) + '</span>' + (added ? '<em class="fh1-ap-tag">已添加</em>' : '') + '</label>';
+            }).join('');
+        }
+        function openAppendix(segKey) {
+            var panel = document.getElementById('story-log-panel'), content = document.getElementById('story-log-content');
+            if (!panel || !content) { rvAlert('找不到「故事日志」面板'); return; }
+            var d = st.draft; if (!d) return;
+            var isGroup = (segKey === '背景设定' || segKey === '社会生态');
+            var p = presets()[d.name] || {}, hasMap = {};
+            if (!isGroup) (d.segments || []).forEach(function (s) { if (s.key === segKey) (s.items || []).forEach(function (x) { hasMap[String(x).replace(/^-\s*/, '').trim()] = true; }); });
+            var html = '<div class="fh1-ap-note">附录是可选项：勾选后点「点击添加」加进当前世界观；也可在此新建小标题。</div>';
+            if (isGroup) {
+                var gs = (p.appendix && p.appendix.groups && p.appendix.groups[segKey]) || [];
+                html += gs.length ? gs.map(function (g) {
+                    return '<div class="fh1-ap-sec open"><div class="fh1-ap-sec-head"><span class="fh1-ap-sec-title">' + esc(g.title) + '</span></div>' +
+                        '<div class="fh1-ap-sec-body">' + apBoxes(g.items, {}, g.title) + '</div></div>';
+                }).join('') : '<div class="fh1-ap-empty">（这一段还没有附录内容）</div>';
+            } else {
+                html += apBoxes((p.appendix && p.appendix.sections && p.appendix.sections[segKey]) || [], hasMap, '');
+            }
+            order().forEach(function (n) {
+                if (n === d.name) return;
+                var o = presets()[n] || {};
+                if (isGroup) {
+                    var og = (o.appendix && o.appendix.groups && o.appendix.groups[segKey]) || [];
+                    if (!og.length) return;
+                    html += '<div class="fh1-ap-sec"><div class="fh1-ap-sec-head"><span class="fh1-ap-sec-title">' + esc(n) + '-' + esc(segKey) + '</span></div><div class="fh1-ap-sec-body">' +
+                        og.map(function (g) { return '<div class="fh1-sub-chip">' + esc(g.title) + '</div>' + apBoxes(g.items, {}, g.title); }).join('') + '</div></div>';
+                } else {
+                    var oi = (o.appendix && o.appendix.sections && o.appendix.sections[segKey]) || [];
+                    if (!oi.length) return;
+                    html += '<div class="fh1-ap-sec"><div class="fh1-ap-sec-head"><span class="fh1-ap-sec-title">' + esc(n) + '-' + esc(segKey) + '</span></div><div class="fh1-ap-sec-body">' + apBoxes(oi, hasMap, '') + '</div></div>';
+                }
+            });
+            html += (isGroup ? '<input type="text" id="ap-new-group" class="rule-input" placeholder="新建小标题名称（给已有小标题加子项时也要填它）">' : '') +
+                '<input type="text" id="ap-custom" class="rule-input" placeholder="' + (isGroup ? '子项内容，一行一条' : '自定义一条内容') + '">' +
+                '<button class="wv-apply" data-ap-add="1" data-ap-seg="' + esc(segKey) + '">点击添加</button>';
+            var tEl = panel.querySelector('.story-log-panel-title');
+            if (tEl) tEl.textContent = '附录 · ' + segKey;
+            content.innerHTML = html;
+            panel.classList.add('open');
+            bindAppendixPanel(panel);
+        }
+        function bindAppendixPanel(panel) {
+            if (panel.getAttribute('data-ap-bound')) return;
+            panel.setAttribute('data-ap-bound', '1');
+            panel.addEventListener('click', async function (ev) {
+                var btn = ev.target.closest ? ev.target.closest('[data-ap-add]') : null;
+                if (!btn) return;
+                var segKey = btn.getAttribute('data-ap-seg');
+                var content = document.getElementById('story-log-content');
+                var isGroup = (segKey === '背景设定' || segKey === '社会生态');
+                var newG = content.querySelector('#ap-new-group');
+                var gtitle = newG ? String(newG.value || '').trim() : '';
+                var picked = [];
+                content.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)').forEach(function (b) { picked.push({ g: b.getAttribute('data-ap-g') || '', t: b.value }); });
+                var custom = content.querySelector('#ap-custom');
+                var text = custom ? String(custom.value || '').trim() : '';
+                if (isGroup && !gtitle && !picked.length) { await rvAlert('请先填「新建小标题名称」，或勾选附录里的条目'); return; }
+                var addTo = function (gname, item) {
+                    var g = ensureGroup(segKey, gname || segKey);
+                    if (!g) return 0;
+                    g.items = g.items || [];
+                    var dup = false; g.items.forEach(function (x) { if (String(x).replace(/^-\s*/, '').trim() === item) dup = true; });
+                    if (dup) return 0;
+                    g.items.push('- ' + item); return 1;
+                };
+                var n = 0;
+                picked.forEach(function (x) { n += addTo(x.g, x.t); });
+                if (text) {
+                    (isGroup ? text.split('\n').map(function (s) { return s.trim(); }).filter(Boolean) : [text]).forEach(function (line) { n += addTo(gtitle, line); });
+                }
+                if (!n) { await rvAlert('没有新增内容（可能都已存在）'); return; }
+                panel.classList.remove('open');
+                var c2 = document.getElementById('mode-sections-2');
+                if (c2) renderPage(null, c2);
+            });
+        }
+
+        function plusBtn(k) { return '<button class="fh1-seg-plus" data-act="appendix" data-seg="' + esc(k) + '">＋ 添加</button>'; }
         function buildHtml() {
             var d = st.draft;
             var html = '';
@@ -4173,9 +4278,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html += '<div class="section">';
             html += '<div class="wv-head"><span class="wv-title">世界观调整</span>' +
                 '<span class="wv-cur">世界书当前：' + esc(st.source || '（空）') + '</span></div>';
-            html += '<div class="wv-cards">' + order().map(function (n) {
-                return '<span class="wv-card' + (n === st.source ? ' active' : '') + '" data-act="pick" data-name="' + esc(n) + '">' + esc(n) + '</span>';
-            }).join('') + '</div>';
+            html += '';   // 世界观不可在此切换：只能调整当前世界观内的内容
             html += '<div class="wv-bar">' +
                 '<label class="wv-edit"><input type="checkbox" data-act="edit"' + (st.editing ? ' checked' : '') + '>编辑模式</label>' +
                 '<button class="wv-apply" data-act="apply">应用（写入世界书）</button>' +
@@ -4187,14 +4290,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // 平铺段落
             (d.segments || []).forEach(function (s, i) {
                 html += '<div class="section"><div class="fh1-wv-seg">' +
-                    '<div class="fh1-wv-seg-title"><span>' + esc(s.key) + '</span></div>' +
+                    '<div class="fh1-wv-seg-title"><span>' + esc(s.key) + '</span>' + plusBtn(s.key) + '</div>' +
                     ((s.items || []).map(function (t, j) { return itemRow('seg', i, j, t.replace(/^-\s*/, '')); }).join('') ||
                         '<div class="fh1-hint">（这一段还没有条目）</div>') +
                     '</div></div>';
             });
             // 背景设定（小标题带 + 当前小标题的子项）
             var bg = d.background || [];
-            html += '<div class="section"><div class="fh1-wv-seg"><div class="fh1-wv-seg-title"><span>背景设定</span></div>';
+            html += '<div class="section"><div class="fh1-wv-seg"><div class="fh1-wv-seg-title"><span>背景设定</span>' + plusBtn('背景设定') + '</div>';
             if (bg.length) {
                 var bi = Math.min(Math.max(state_bg(), 0), bg.length - 1);
                 set_bg(bi);
@@ -4208,7 +4311,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html += '</div></div>';
             // 社会生态
             var blocks = (d.ecology && d.ecology.blocks) || [];
-            html += '<div class="section"><div class="fh1-wv-seg"><div class="fh1-wv-seg-title"><span>社会生态</span></div>';
+            html += '<div class="section"><div class="fh1-wv-seg"><div class="fh1-wv-seg-title"><span>社会生态</span>' + plusBtn('社会生态') + '</div>';
             if (blocks.length) {
                 var ei = Math.min(Math.max(st.ecoSel | 0, 0), blocks.length - 1);
                 st.ecoSel = ei;
@@ -4279,7 +4382,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var el = ev.target.closest ? ev.target.closest('[data-act]') : null;
                 if (!el || !container.contains(el)) return;
                 var act = el.getAttribute('data-act'), kind = el.getAttribute('data-kind'), i = +el.getAttribute('data-i');
-                if (act === 'pick') { syncFromDom(container); loadFromPreset(el.getAttribute('data-name')); renderPage(null, container); }
+                if (act === 'appendix') { syncFromDom(container); openAppendix(el.getAttribute('data-seg')); return; }
                 else if (act === 'retry') { renderPage(null, container); }
                 else if (act === 'edit') { syncFromDom(container); st.editing = !st.editing; renderPage(null, container); }
                 else if (act === 'apply') { syncFromDom(container); applyAll(container); }
@@ -4341,6 +4444,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
         /* ---------- 注册三个渲染器 ---------- */
         SECTION_RENDERERS.worldview = function (data, container) { renderPage(data, container); };
+        // 故事日志书签只在「开拓新大陆（航海）」世界观出现
+        (function () {
+            var orig = App.ui.renderModeSections;
+            if (typeof orig === 'function' && !orig.__wvBmPatched) {
+                App.ui.renderModeSections = function () {
+                    var r = orig.apply(this, arguments);
+                    try {
+                        var bm = document.getElementById('story-log-bookmark');
+                        if (bm) {
+                            var wv = (App.state.parsedData && App.state.parsedData.worldview) || '';
+                            bm.style.display = (wv === 'colony') ? '' : 'none';
+                        }
+                    } catch (e) {}
+                    return r;
+                };
+                App.ui.renderModeSections.__wvBmPatched = true;
+            }
+        })();
+
         /* ---------- 第 3 页：特殊规则（数据在变量 rules 里，只由状态栏写；AI 看不到） ---------- */
         /* ---------- 自定义弹窗（移植前端的深色卡片样式，替代浏览器原生 alert/confirm/prompt） ---------- */
         function rvDialog(msg, opts) {

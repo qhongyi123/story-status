@@ -1843,3 +1843,30 @@ body {
 .rv-btn:hover { background: rgba(212, 175, 55, 0.2); }
 .rv-btn.primary { color: #fff; background: linear-gradient(135deg, #b8860b 0%, #8b6b00 100%); border-color: var(--color-primary-dark); }
 .rv-btn.primary:hover { background: linear-gradient(135deg, #d4af37 0%, #a17f00 100%); }
+
+/* ===== 修正：夜间模式下输入框底/字对比太接近（浅底深字，强制） ===== */
+.rule-input, .rv-input {
+    background: #fdf6e3 !important;
+    color: #3e2723 !important;
+    border-color: var(--color-primary-dark) !important;
+}
+.rule-input::placeholder, .rv-input::placeholder { color: #9c8b74 !important; }
+
+/* ===== 世界观调整页：布局对齐前端（去掉每块外面的卡片壳，段落直接铺开） ===== */
+#mode-sections-2 .section {
+    background: transparent; border: none; box-shadow: none;
+    padding: 0; margin: 0 0 4px 0; border-radius: 0;
+}
+#mode-sections-2 .wv-head { padding-bottom: 8px; border-bottom: 1px dashed rgba(184, 134, 11, 0.35); }
+#mode-sections-2 .fh1-wv-seg { margin-bottom: 16px; }
+
+/* ===== 修正：夜间模式下「主题模式 / 设置字体」等下拉与输入框看不见字 ===== */
+#status-card-wrapper select,
+#status-card-wrapper input[type="text"],
+#status-card-wrapper input[type="number"],
+#status-card-wrapper textarea {
+    background: #fdf6e3 !important;
+    color: #3e2723 !important;
+    border-color: var(--color-primary-dark) !important;
+}
+#status-card-wrapper select option { background: #fdf6e3; color: #3e2723; }
