@@ -1815,3 +1815,31 @@ body {
 .rule-enable input { accent-color: var(--color-primary-dark); }
 .rule-card-body .rule-intro { margin-left: 0; }
 .rule-card-body .rule-modes, .rule-card-body .rule-fillbar, .rule-card-body .rule-entries { margin-left: 0; }
+
+/* ===== 状态栏自定义弹窗（替代浏览器原生 alert/confirm/prompt） ===== */
+.rv-modal { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; }
+.rv-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); }
+.rv-box {
+    position: relative; width: min(88%, 380px); padding: 18px 18px 14px 18px;
+    background: linear-gradient(135deg, #2c1b4d 0%, #150824 100%);
+    border: 2px solid var(--color-primary-dark); border-radius: 12px;
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
+}
+.rv-msg { font-size: 0.92rem; line-height: 1.75; color: #fdf6e3; word-break: break-word; }
+.rv-input {
+    width: 100%; box-sizing: border-box; margin-top: 12px; padding: 7px 9px;
+    font-family: inherit; font-size: 0.9rem; color: #fdf6e3;
+    background: rgba(255, 255, 255, 0.08); border: 1px solid var(--color-border);
+    border-radius: 6px; outline: none;
+}
+.rv-input:focus { border-color: var(--color-primary); }
+.rv-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.rv-btn {
+    padding: 6px 18px; font-family: inherit; font-size: 0.86rem; font-weight: bold;
+    color: var(--color-primary); background: transparent;
+    border: 1px solid var(--color-border); border-radius: 999px; cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.rv-btn:hover { background: rgba(212, 175, 55, 0.2); }
+.rv-btn.primary { color: #fff; background: linear-gradient(135deg, #b8860b 0%, #8b6b00 100%); border-color: var(--color-primary-dark); }
+.rv-btn.primary:hover { background: linear-gradient(135deg, #d4af37 0%, #a17f00 100%); }

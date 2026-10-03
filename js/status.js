@@ -4275,7 +4275,7 @@ document.addEventListener('DOMContentLoaded', function() {
         function bind(container) {
             if (container.getAttribute('data-wv-bound')) return;
             container.setAttribute('data-wv-bound', '1');
-            container.addEventListener('click', function (ev) {
+            container.addEventListener('click', async function (ev) {
                 var el = ev.target.closest ? ev.target.closest('[data-act]') : null;
                 if (!el || !container.contains(el)) return;
                 var act = el.getAttribute('data-act'), kind = el.getAttribute('data-kind'), i = +el.getAttribute('data-i');
@@ -4307,7 +4307,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     var arr = kind === 'eco' ? (st.draft.ecology ? st.draft.ecology.blocks : null) : st.draft.background;
                     if (arr && arr[i]) {
                         var title = arr[i].title || arr[i].label || '';
-                        if (!window.confirm('删去小标题「' + title + '」及它下面的 ' + ((arr[i].items || []).length) + ' 条子项？')) return;
+                        if (!await rvConfirm('删去小标题「' + title + '」及它下面的 ' + ((arr[i].items || []).length) + ' 条子项？')) return;
                         arr.splice(i, 1);
                         if (kind === 'eco') st.ecoSel = 0; else App.state.wvBgSel = 0;
                         renderPage(null, container);
@@ -4318,22 +4318,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         async function applyAll(container) {
             if (!st.draft) return;
-            if (!st.draft.name) { alert('这套世界观没有名字（正文里缺少「风格：xxx」标签），先补上再应用。'); return; }
-            var ok = window.confirm('把当前内容写入世界书？\n世界观 → uid ' + UID_WORLD +
+            if (!st.draft.name) { await rvAlert('这套世界观没有名字（正文里缺少「风格：xxx」标签），先补上再应用。'); return; }
+            var ok = await rvConfirm('把当前内容写入世界书？\n世界观 → uid ' + UID_WORLD +
                 '\n社会生态 → uid ' + UID_ECO +
                 '\n变量规则 → uid ' + UID_VARRULES + (st.draft.varRulesFree ? '' : '（这套没有，跳过）'));
             if (!ok) return;
             var r1 = await writeEntry(UID_WORLD, assembleWorld(st.draft));
-            if (!r1.ok) { alert('世界观写入失败：' + r1.msg); return; }
+            if (!r1.ok) { await rvAlert('世界观写入失败：' + r1.msg); return; }
             var r2 = await writeEntry(UID_ECO, assembleEco(st.draft));
-            if (!r2.ok) { alert('世界观已写入，但生态写入失败：' + r2.msg); return; }
+            if (!r2.ok) { await rvAlert('世界观已写入，但生态写入失败：' + r2.msg); return; }
             if (st.draft.varRulesFree) {
                 var r3 = await writeEntry(UID_VARRULES, st.draft.varRulesFree);
-                if (!r3.ok) { alert('世界观与生态已写入，但变量规则写入失败：' + r3.msg); return; }
+                if (!r3.ok) { await rvAlert('世界观与生态已写入，但变量规则写入失败：' + r3.msg); return; }
             }
             st.source = st.draft.name;
             st.loadedOnce = true;
-            alert('已写入世界书：\n世界观 uid ' + UID_WORLD + '（' + assembleWorld(st.draft).length + ' 字）' +
+            await rvAlert('已写入世界书：\n世界观 uid ' + UID_WORLD + '（' + assembleWorld(st.draft).length + ' 字）' +
                 '\n社会生态 uid ' + UID_ECO +
                 (st.draft.varRulesFree ? '\n变量规则 uid ' + UID_VARRULES : ''));
             renderPage(null, container);
@@ -4342,22 +4342,74 @@ document.addEventListener('DOMContentLoaded', function() {
         /* ---------- 注册三个渲染器 ---------- */
         SECTION_RENDERERS.worldview = function (data, container) { renderPage(data, container); };
         /* ---------- 第 3 页：特殊规则（数据在变量 rules 里，只由状态栏写；AI 看不到） ---------- */
+        /* ---------- 自定义弹窗（移植前端的深色卡片样式，替代浏览器原生 alert/confirm/prompt） ---------- */
+        function rvDialog(msg, opts) {
+            opts = opts || {};
+            return new Promise(function (resolve) {
+                var d = document.createElement('div');
+                d.className = 'rv-modal';
+                var isPrompt = opts.prompt === true;
+                d.innerHTML = '<div class="rv-backdrop"></div><div class="rv-box">' +
+                    '<div class="rv-msg">' + String(msg == null ? '' : msg).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>') + '</div>' +
+                    (isPrompt ? '<input class="rv-input" type="text" value="' + String(opts.value || '').replace(/"/g, '&quot;') + '">' : '') +
+                    (opts.alert === true
+                        ? '<div class="rv-btns"><button class="rv-btn primary" data-rv="ok">知道了</button></div>'
+                        : '<div class="rv-btns"><button class="rv-btn" data-rv="cancel">取消</button><button class="rv-btn primary" data-rv="ok">确定</button></div>') +
+                    '</div>';
+                document.body.appendChild(d);
+                var input = d.querySelector('.rv-input');
+                if (input) { try { input.focus(); input.select(); } catch (e) {} }
+                var close = function (ok) {
+                    if (d.parentNode) d.parentNode.removeChild(d);
+                    resolve(ok ? (isPrompt ? (input ? input.value : '') : true) : (isPrompt ? null : false));
+                };
+                d.addEventListener('click', function (e) {
+                    var b = e.target.closest ? e.target.closest('[data-rv]') : null;
+                    if (b) { close(b.getAttribute('data-rv') === 'ok'); return; }
+                    if (e.target.classList && e.target.classList.contains('rv-backdrop')) close(false);
+                });
+                if (input) {
+                    input.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') { e.preventDefault(); close(true); }
+                        if (e.key === 'Escape') { e.preventDefault(); close(false); }
+                    });
+                }
+            });
+        }
+        function rvConfirm(msg) { return rvDialog(msg, {}); }
+        function rvAlert(msg) { return rvDialog(msg, { alert: true }); }
+        function rvPrompt(msg, value) { return rvDialog(msg, { prompt: true, value: value || '' }); }
+
+        /* ---------- 规则指导 → 世界书 uid 5（<世界观内化协议细节指导> 包裹，块间用 --- 分隔） ---------- */
+        var UID_INNER = 5;
+        var INNER_TAG = '世界观内化协议细节指导';
+        async function writeInnerGuidance() {
+            var R = rulesVar(), presets = rulePresets(), blocks = [];
+            presets.forEach(function (p) { if (R[p.name] !== undefined && p.guide) blocks.push(String(p.guide).trim()); });
+            var text = '<' + INNER_TAG + '>\n' + (blocks.length ? blocks.join('\n---\n') : '') + '\n</' + INNER_TAG + '>';
+            var r = await writeEntry(UID_INNER, text);
+            if (!r.ok) { await rvAlert('规则指导写入 uid ' + UID_INNER + ' 失败：' + r.msg + '\n（规则变量已生效，但 AI 那边拿不到指导）'); return false; }
+            console.log('状态栏·特殊规则：已把 ' + blocks.length + ' 条启用规则的指导覆写进 uid ' + UID_INNER);
+            return true;
+        }
+
         function rulesVar() { var raw = (App.state.parsedData && App.state.parsedData.raw) || {}; return raw.rules || {}; }
         function rulePresets() { return (window.RULES_PRESETS && window.RULES_PRESETS.rules) || []; }
 
         async function rulesWrite(act, payload) {
             try {
-                if (typeof window.eventEmit !== 'function') { alert('eventEmit 不可用，无法写入变量'); return false; }
+                if (typeof window.eventEmit !== 'function') { await rvAlert('eventEmit 不可用，无法写入变量'); return false; }
                 window.eventEmit('era:' + act + 'ByObject', payload);
                 await new Promise(function (r) { setTimeout(r, 300); });  // 等变量落盘
                 return true;
-            } catch (e) { alert('写入变量失败：' + ((e && e.message) || e)); return false; }
+            } catch (e) { await rvAlert('写入变量失败：' + ((e && e.message) || e)); return false; }
         }
         async function rulesRefresh(container) {
             try {
                 var raw = await App.parsers.getVariableData();
                 App.state.parsedData = App.parsers.parseData(raw);
             } catch (e) { console.warn('刷新变量失败', e); }
+            await writeInnerGuidance();   // 规则一变动就把启用条目的指导覆写进 uid 5
             renderRules(container);
         }
 
@@ -4432,11 +4484,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (act === 'toggle') {
                     if (cur !== undefined) {
-                        if (!window.confirm('取消「' + name + '」？')) { renderRules(container); return; }
+                        if (!await rvConfirm('取消「' + name + '」？')) { renderRules(container); return; }
                         if (await rulesWrite('delete', { rules: (function () { var o = {}; o[name] = {}; return o; })() })) await rulesRefresh(container);
                     } else {
-                        if (preset && preset.modes && preset.modes.length) { alert('「' + name + '」需要先选一个模式才生效'); renderRules(container); return; }
-                        if (preset && preset.fill) { alert('「' + name + '」需要先在框里填内容，再点「添加」'); renderRules(container); return; }
+                        if (preset && preset.modes && preset.modes.length) { await rvAlert('「' + name + '」需要先选一个模式才生效'); renderRules(container); return; }
+                        if (preset && preset.fill) { await rvAlert('「' + name + '」需要先在框里填内容，再点「添加」'); renderRules(container); return; }
                         if (await rulesWrite('insert', { rules: (function () { var o = {}; o[name] = {}; return o; })() })) await rulesRefresh(container);
                     }
                     return;
@@ -4451,8 +4503,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (act === 'add-entry' || act === 'edit-entry') {
                     var box = container.querySelector('[data-rules-input="' + name + '"]');
                     var text = (act === 'add-entry') ? (box ? String(box.value || '').trim() : '') : (el.getAttribute('data-text') || '');
-                    if (act === 'edit-entry') { var nv = window.prompt('修改这条：', text); if (nv === null) return; text = String(nv).trim(); if (text === (el.getAttribute('data-text') || '')) return; }
-                    if (!text) { alert('先填内容'); return; }
+                    if (act === 'edit-entry') { var nv = await rvPrompt('修改这条：', text); if (nv === null) return; text = String(nv).trim(); if (text === (el.getAttribute('data-text') || '')) return; }
+                    if (!text) { await rvAlert('先填内容'); return; }
                     if (act === 'edit-entry') {
                         var delPay = { rules: (function () { var o = {}; var inner = {}; inner[el.getAttribute('data-text')] = {}; o[name] = inner; return o; })() };
                         if (!(await rulesWrite('delete', delPay))) return;
@@ -4464,7 +4516,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 if (act === 'del-entry') {
-                    if (!window.confirm('删掉这条常识？\n' + (el.getAttribute('data-text') || ''))) return;
+                    if (!await rvConfirm('删掉这条常识？\n' + (el.getAttribute('data-text') || ''))) return;
                     var innerD = {}; innerD[el.getAttribute('data-text')] = {};
                     var payD = { rules: (function () { var o = {}; o[name] = innerD; return o; })() };
                     if (await rulesWrite('delete', payD)) await rulesRefresh(container);
