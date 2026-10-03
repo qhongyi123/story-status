@@ -4238,6 +4238,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (panel.getAttribute('data-ap-bound')) return;
             panel.setAttribute('data-ap-bound', '1');
             panel.addEventListener('click', async function (ev) {
+                var _head = ev.target.closest ? ev.target.closest('.fh1-ap-sec-head') : null;
+                if (_head && ev.target.tagName !== 'INPUT') { var _sec = _head.parentElement; if (_sec) _sec.classList.toggle('open'); return; }
                 var btn = ev.target.closest ? ev.target.closest('[data-ap-add]') : null;
                 if (!btn) return;
                 var segKey = btn.getAttribute('data-ap-seg');
@@ -4281,7 +4283,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html += '';   // 世界观不可在此切换：只能调整当前世界观内的内容
             html += '<div class="wv-bar">' +
                 '<label class="wv-edit"><input type="checkbox" data-act="edit"' + (st.editing ? ' checked' : '') + '>编辑模式</label>' +
-                '<button class="wv-apply" data-act="apply">应用（写入世界书）</button>' +
+                '' +
                 '</div>';
             if (st.err) html += '<div class="wv-err">' + esc(st.err) + '</div>';
             html += '</div>';
@@ -4332,8 +4334,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html += '</div></div>';
             // 变量规则提示（只读，来自预置）
             html += '<button class="fh1-apply-btn" data-act="apply">\u25B6 应用（写入世界书）</button>';
-            html += '<div class="section"><div class="wv-note">变量规则：随「应用」一起写入 uid ' + UID_VARRULES +
-                '（这套世界观 ' + (d.varRulesFree ? d.varRulesFree.length + ' 字' : '没有变量规则文件，将跳过') + '）</div></div>';
+            ;
             return html;
         }
         function state_bg() { return (App.state.wvBgSel | 0); }

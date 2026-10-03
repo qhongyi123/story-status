@@ -2525,3 +2525,31 @@ body {
 .story-log-content .fh1-ap-item.added { color: #9c8b74; }
 .story-log-content .fh1-ap-note { color: #8a5a2b; background: rgba(212, 175, 55, 0.10); }
 .story-log-content .rule-input, .story-log-content .wv-apply { margin-top: 8px; }
+
+/* ===== 世界观页：头部不套卡片；四个段落合并成一张连续纸面（第 4、2 条） ===== */
+#mode-sections-2 .section:first-child {
+    background: transparent !important; border: none !important; box-shadow: none !important;
+    padding: 0 2px 6px 2px !important; margin-bottom: 8px !important;
+}
+#mode-sections-2 .section:not(:first-child) { margin-bottom: 0; border-radius: 0; border-top: none; }
+#mode-sections-2 .section:nth-child(2) { border-top: 1px solid var(--color-border); border-radius: 10px 10px 0 0; }
+#mode-sections-2 .section:last-child { border-radius: 0 0 10px 10px; }
+#mode-sections-2 .fh1-wv-seg { margin-bottom: 12px; }
+#mode-sections-2 .fh1-wv-seg:last-child { margin-bottom: 4px; }
+#mode-sections-2 .fh1-wv-seg-title { padding-bottom: 3px; margin-bottom: 6px; }
+#mode-sections-2 .wv-head { border-bottom: none; margin-bottom: 4px; }
+#mode-sections-2 .fh1-apply-btn { margin: 12px 0 2px 0; }
+
+/* ===== 附录抽屉在深色面板里：改成浅字（第 5 条：棕色配紫黑看不清） ===== */
+.story-log-content .fh1-ap-item { color: #fdf6e3 !important; }
+.story-log-content .fh1-ap-item.added { color: rgba(253, 246, 227, 0.45) !important; }
+.story-log-content .fh1-ap-item input { accent-color: var(--color-primary); }
+.story-log-content .fh1-ap-note { color: #e7dcc4 !important; background: rgba(212, 175, 55, 0.10); border: 1px dashed rgba(212, 175, 55, 0.4); }
+.story-log-content .fh1-ap-sec { border: 1px solid rgba(212, 175, 55, 0.35); border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+.story-log-content .fh1-ap-sec-head { background: rgba(212, 175, 55, 0.18); cursor: pointer; }
+.story-log-content .fh1-ap-sec-head:hover { background: rgba(212, 175, 55, 0.30); }
+.story-log-content .fh1-ap-sec-title { color: var(--color-primary) !important; }
+.story-log-content .fh1-ap-empty { color: #b9a98c !important; }
+.story-log-content .fh1-ap-tag { color: var(--color-primary) !important; border-color: rgba(212, 175, 55, 0.55); }
+.story-log-content .fh1-sub-chip { color: #6b4b1f; }
+.story-log-content .fh1-seg-plus { margin-left: 8px; }
