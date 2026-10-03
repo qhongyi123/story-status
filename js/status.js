@@ -4286,6 +4286,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (st.err) html += '<div class="wv-err">' + esc(st.err) + '</div>';
             html += '</div>';
             if (!d) return html;
+            // 详情头（与前端展开态一致：名字 + 时代标签 + 时代全文 + 一句话简介）
+            html += '<div class="fh1-wv-detail-head">' +
+                '<div class="fh1-wv-card-top"><span class="fh1-wv-name">' + esc(d.name || '') + '</span>' +
+                '<span class="fh1-wv-era-tag">' + esc(d.eraShort || '') + '</span></div>' +
+                '<div class="fh1-wv-era-full">' + esc(d.era || '') + '</div>' +
+                '<div class="fh1-wv-sum">' + esc(d.summary || '') + '</div>' +
+            '</div>';
 
             // 平铺段落
             (d.segments || []).forEach(function (s, i) {
@@ -4324,6 +4331,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             html += '</div></div>';
             // 变量规则提示（只读，来自预置）
+            html += '<button class="fh1-apply-btn" data-act="apply">\u25B6 应用（写入世界书）</button>';
             html += '<div class="section"><div class="wv-note">变量规则：随「应用」一起写入 uid ' + UID_VARRULES +
                 '（这套世界观 ' + (d.varRulesFree ? d.varRulesFree.length + ' 字' : '没有变量规则文件，将跳过') + '）</div></div>';
             return html;

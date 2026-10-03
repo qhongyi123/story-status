@@ -1870,3 +1870,658 @@ body {
     border-color: var(--color-primary-dark) !important;
 }
 #status-card-wrapper select option { background: #fdf6e3; color: #3e2723; }
+
+
+/* =====================================================================
+ * 以下整块样式直接搬自「前端文件/css/style.css」的 FH1 部分：
+ * 目的＝让状态栏的世界观界面与前端逐像素一致（含 ＋添加胶囊、条目圆点、小标题带、应用按钮、附录抽屉）
+ * ===================================================================== */
+/* ===== FH1 · 本子世界自由模式（世界观卡片列表 + 展开） ===== */
+.fh1-wv-wrap { padding: 6px 0 10px 0; }
+.fh1-wv-list {
+    max-width: 520px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.fh1-wv-card {
+    padding: 12px 14px;
+    border: 1px solid rgba(184, 134, 11, 0.4);
+    border-radius: 10px;
+    background: rgba(253, 246, 227, 0.5);
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+.fh1-wv-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--color-primary-dark);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+.fh1-wv-card-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+.fh1-wv-name {
+    font-weight: bold;
+    color: var(--color-text-dark);
+    font-size: 1.12rem;
+    letter-spacing: 2px;
+}
+.fh1-wv-era-tag {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    color: #8b5a2b;
+    border: 1px solid rgba(184, 134, 11, 0.5);
+    border-radius: 999px;
+    padding: 1px 9px;
+    background: rgba(212, 175, 55, 0.12);
+}
+.fh1-wv-sum {
+    margin-top: 6px;
+    font-size: 0.86rem;
+    line-height: 1.6;
+    color: #8a8a8a;
+}
+/* 展开态：不再是一张卡——无边框、无底色、无圆角、无内部滚动，内容直接铺在界面里 */
+.fh1-wv-detail {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 2px 8px 2px;
+}
+.fh1-wv-detail-head {
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    border-bottom: 1px dashed rgba(184, 134, 11, 0.45);
+}
+.fh1-wv-era-full {
+    margin-top: 3px;
+    font-size: 0.76rem;
+    color: #a08a6a;
+    letter-spacing: 0.5px;
+}
+.fh1-wv-body { margin-top: 12px; }
+.fh1-wv-seg { margin-bottom: 14px; }
+.fh1-wv-seg-title {
+    font-size: 0.98rem;
+    font-weight: bold;
+    color: var(--color-primary-dark);
+    letter-spacing: 2px;
+    padding-bottom: 4px;
+    margin-bottom: 7px;
+    border-bottom: 1px dashed rgba(184, 134, 11, 0.45);
+}
+.fh1-wv-sub {
+    font-size: 0.88rem;
+    font-weight: bold;
+    color: #8b5a2b;
+    margin: 9px 0 5px 0;
+    letter-spacing: 1px;
+}
+.fh1-wv-item {
+    font-size: 0.88rem;
+    line-height: 1.75;
+    color: var(--color-text-dark);
+    padding-left: 14px;
+    position: relative;
+    word-break: break-word;
+}
+.fh1-wv-item::before {
+    content: '·';
+    position: absolute;
+    left: 3px;
+    color: var(--color-primary-dark);
+    font-weight: bold;
+}
+.fh1-wv-reselect {
+    display: block;
+    margin: 14px auto 2px auto;
+    padding: 5px 16px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: #8b5a2b;
+    background: rgba(253, 246, 227, 0.6);
+    border: 1px dashed rgba(184, 134, 11, 0.55);
+    border-radius: 6px;
+    cursor: pointer;
+}
+.fh1-wv-reselect:hover { border-color: var(--color-primary-dark); color: var(--color-primary-dark); }
+.fh1-empty {
+    max-width: 520px;
+    margin: 30px auto;
+    padding: 26px 14px;
+    text-align: center;
+    font-size: 0.86rem;
+    color: #a0a0a0;
+    border: 1px dashed rgba(184, 134, 11, 0.35);
+    border-radius: 10px;
+    background: rgba(253, 246, 227, 0.28);
+}
+.fh1-hint {
+    font-size: 0.8rem;
+    color: #888;
+    text-align: center;
+    margin: 8px 0;
+    line-height: 1.6;
+}
+.fh1-hint code { color: #8b5a2b; }
+@media (max-width: 768px) {
+    .fh1-wv-list, .fh1-empty { max-width: 100%; }
+}
+
+/* ===== FH1 · 铺满 + 编辑模式（覆盖上面的窄卡样式；隐藏/重选已改为书签） ===== */
+.fh1-wv-wrap { position: relative; width: 100%; }
+.fh1-wv-list { max-width: none; width: 100%; margin: 0; }
+.fh1-wv-card { width: 100%; box-sizing: border-box; padding: 14px 16px; }
+/* 展开态由 .fh1-wv-detail 接管，不再限高（滚动交给 .sub-panels-wrapper） */
+
+/* 新增的两个书签：样式与原有书签一致，六色各不相同
+   目录·金 #b8860b ｜ 封面·蓝 #0f4c81 ｜ 翻页·红 #800020 ｜ 角色·绿 #005f40
+   隐藏·灰蓝 #37474f ｜ 重选·褐 #8d6e63   （返回·紫只在角色管理页） */
+.bookmark-hide, .bookmark-reselect {
+    position: absolute;
+    right: -15px;
+    width: 72px;
+    height: 40px;
+    border: 2px solid var(--color-primary);
+    border-right: none;
+    border-radius: 5px 0 0 5px;
+    display: none;              /* 默认隐藏：只有 fh1SyncSideBookmarks() 显式设为 flex 才出现 */
+    justify-content: flex-start;
+    align-items: center;
+    padding-left: 12px;
+    color: var(--color-primary);
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: right center;
+    white-space: nowrap;
+}
+.bookmark-hide { bottom: 250px; background: linear-gradient(135deg, #37474f 0%, #1c262b 100%); box-shadow: -3px 3px 6px rgba(0,0,0,0.4); }
+.bookmark-hide::after { content: '\21E5'; font-size: 1.2rem; margin-left: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+.bookmark-hide:hover { width: 82px; right: -10px; background: linear-gradient(135deg, #4e5f68 0%, #263238 100%); }
+.bookmark-reselect { bottom: 305px; background: linear-gradient(135deg, #8d6e63 0%, #4e342e 100%); box-shadow: -3px 3px 6px rgba(0,0,0,0.4); }
+.bookmark-reselect::after { content: '\21BB'; font-size: 1.2rem; margin-left: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+.bookmark-reselect:hover { width: 82px; right: -10px; background: linear-gradient(135deg, #a1887f 0%, #5d4037 100%); }
+.bookmark-hide:active, .bookmark-reselect:active { transform: scaleX(0.95) scaleY(0.95); }
+
+/* 编辑模式：条目可改（虚线框）＋ 每行一个 ✕ */
+.fh1-wv-item-row { display: flex; align-items: flex-start; gap: 6px; }
+.fh1-wv-item-row .fh1-wv-item { flex: 1; min-width: 0; }
+.fh1-editing .fh1-wv-item {
+    outline: 1px dashed rgba(184, 134, 11, 0.55);
+    border-radius: 4px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background: rgba(255, 255, 255, 0.55);
+}
+.fh1-item-del {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    margin-top: 2px;
+    line-height: 1;
+    font-family: inherit;
+    font-size: 0.8rem;
+    border: 1px solid rgba(139, 0, 32, 0.5);
+    border-radius: 4px;
+    background: rgba(139, 0, 32, 0.12);
+    color: #8b0020;
+    cursor: pointer;
+}
+.fh1-item-del:hover { background: #8b0020; color: #fff; }
+
+/* 卡片最下方：启用并继续 */
+.fh1-apply-btn {
+    display: block;
+    width: 100%;
+    margin-top: 16px;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #fff;
+    background: linear-gradient(135deg, #b8860b 0%, #8b6b00 100%);
+    border: 1px solid var(--color-primary-dark);
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+.fh1-apply-btn:hover { background: linear-gradient(135deg, #d4af37 0%, #a17f00 100%); }
+
+@media (max-width: 768px) {
+    .fh1-wv-wrap { padding-right: 0; }
+    .bookmark-hide { bottom: 195px; }
+    .bookmark-reselect { bottom: 140px; }
+}
+
+/* ===== FH1 · 段落标题行的「＋ 附录」与附录抽屉内容 ===== */
+/* 标题行：左标题、右胶囊按钮（用 margin-left:auto 顶到最右，避免错位） */
+.fh1-wv-seg-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.fh1-seg-plus {
+    margin-left: auto;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 21px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: normal;
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: nowrap;
+    color: #6b4b1f;
+    background: #fdf6e3;
+    border: 1px solid rgba(184, 134, 11, 0.6);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.fh1-seg-plus:hover {
+    background: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+    color: #fff;
+}
+
+/* 附录抽屉：外壳是深紫底（.fc1-drawer-card），所以文字一律用浅色系，
+   不要用 --color-text-dark（那是给浅色纸面用的深棕，在这里看不清） */
+.fh1-ap-note {
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: #e7dcc4;
+    padding: 9px 11px;
+    margin-bottom: 10px;
+    border: 1px dashed rgba(212, 175, 55, 0.4);
+    border-radius: 6px;
+    background: rgba(212, 175, 55, 0.10);
+}
+.fh1-ap-sec {
+    margin-bottom: 8px;
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.fh1-ap-sec-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    background: rgba(212, 175, 55, 0.18);
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: var(--color-primary);
+    letter-spacing: 1px;
+}
+.fh1-ap-sec-head:hover { background: rgba(212, 175, 55, 0.30); }
+.fh1-ap-sec-body { display: none; padding: 6px 10px 8px 10px; }
+.fh1-ap-sec.open .fh1-ap-sec-body { display: block; }
+.fh1-ap-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 0;
+    font-size: 0.86rem;
+    line-height: 1.65;
+    color: var(--color-text-light);
+    cursor: pointer;
+    border-bottom: 1px dashed rgba(212, 175, 55, 0.22);
+}
+.fh1-ap-item:last-child { border-bottom: none; }
+.fh1-ap-item input {
+    flex-shrink: 0;
+    margin-top: 3px;
+    accent-color: var(--color-primary);
+}
+.fh1-ap-item.added { color: rgba(253, 246, 227, 0.5); }
+.fh1-ap-tag {
+    flex-shrink: 0;
+    margin-left: auto;
+    font-style: normal;
+    font-size: 0.7rem;
+    color: var(--color-primary);
+    border: 1px solid rgba(212, 175, 55, 0.55);
+    border-radius: 999px;
+    padding: 0 6px;
+}
+.fh1-ap-empty { font-size: 0.82rem; color: #b9a98c; padding: 4px 0; }
+.fh1-ap-add {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 9px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #fff;
+    background: linear-gradient(135deg, #b8860b 0%, #8b6b00 100%);
+    border: 1px solid var(--color-primary-dark);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.fh1-ap-add:hover { background: linear-gradient(135deg, #d4af37 0%, #a17f00 100%); }
+
+/* 附录里的「＋ 自定义」（同样按深底浅字配色） */
+.fh1-ap-custom { margin-top: 10px; }
+.fh1-ap-custom-btn {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: var(--color-primary);
+    background: rgba(212, 175, 55, 0.10);
+    border: 1px dashed rgba(212, 175, 55, 0.55);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.fh1-ap-custom-btn:hover { background: rgba(212, 175, 55, 0.22); }
+.fh1-ap-custom-row { display: flex; gap: 6px; margin-top: 8px; }
+.fh1-ap-custom-input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 9px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    color: var(--color-text-light);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    border-radius: 6px;
+    outline: none;
+}
+.fh1-ap-custom-input::placeholder { color: rgba(253, 246, 227, 0.4); }
+.fh1-ap-custom-input:focus { border-color: var(--color-primary); }
+.fh1-ap-custom-add {
+    flex-shrink: 0;
+    padding: 0 14px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(135deg, #b8860b 0%, #8b6b00 100%);
+    border: 1px solid var(--color-primary-dark);
+    border-radius: 6px;
+    cursor: pointer;
+}
+.fh1-ap-custom-add:hover { background: linear-gradient(135deg, #d4af37 0%, #a17f00 100%); }
+.fh1-ap-custom-tip { margin-top: 6px; font-size: 0.76rem; color: #b9a98c; min-height: 1em; }
+
+/* ===== FH1 · 特殊规则页的引导提示（浅色内容区，用深字/金底） ===== */
+.fh1-rules-wrap { padding: 4px 2px; }
+.fh1-rules-gate {
+    max-width: 560px;
+    margin: 14px auto;
+    padding: 20px 18px;
+    border: 1px dashed rgba(184, 134, 11, 0.5);
+    border-radius: 10px;
+    background: rgba(253, 246, 227, 0.4);
+    text-align: center;
+}
+.fh1-gate-note {
+    font-size: 0.92rem;
+    line-height: 1.8;
+    color: var(--color-text-dark);
+}
+.fh1-gate-note b { color: var(--color-primary-dark); }
+.fh1-gate-btns {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+.fh1-gate-btn {
+    padding: 8px 20px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #6b4b1f;
+    background: #fdf6e3;
+    border: 1px solid rgba(184, 134, 11, 0.6);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.fh1-gate-btn:hover { background: var(--color-primary-dark); border-color: var(--color-primary-dark); color: #fff; }
+.fh1-gate-btn.primary {
+    color: #fff;
+    background: linear-gradient(135deg, #b8860b 0%, #8b6b00 100%);
+    border-color: var(--color-primary-dark);
+}
+.fh1-gate-btn.primary:hover { background: linear-gradient(135deg, #d4af37 0%, #a17f00 100%); }
+
+/* ===== FH1 · 小标题带（左右箭头 / 可拖动 / 不换行；选中谁就显示谁） ===== */
+.fh1-sub-strip { display: flex; align-items: center; gap: 4px; margin: 6px 0 8px 0; }
+.fh1-sub-arrow {
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+    line-height: 1.2;
+    color: #8b5a2b;
+    background: rgba(253, 246, 227, 0.7);
+    border: 1px solid rgba(184, 134, 11, 0.45);
+    border-radius: 5px;
+    cursor: pointer;
+    user-select: none;
+}
+.fh1-sub-arrow:hover { background: var(--color-primary-dark); border-color: var(--color-primary-dark); color: #fff; }
+.fh1-sub-track {
+    flex: 1;
+    min-width: 0;
+    position: relative;           /* 让 chip.offsetLeft 相对本容器，便于还原滚动位置 */
+    display: flex;
+    flex-wrap: nowrap;            /* 小标题一律不换行 */
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    cursor: grab;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.fh1-sub-track::-webkit-scrollbar { height: 0; }
+.fh1-sub-track.grabbing { cursor: grabbing; }
+.fh1-sub-chip {
+    flex: 0 0 auto;
+    padding: 3px 12px;
+    font-size: 0.8rem;
+    color: #6b4b1f;
+    background: #fdf6e3;
+    border: 1px solid rgba(184, 134, 11, 0.5);
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.fh1-sub-chip:hover { background: rgba(212, 175, 55, 0.25); }
+.fh1-sub-chip.active {
+    background: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+    color: #fff;
+    font-weight: bold;
+}
+
+/* 第二行：仅编辑模式下出现——给当前小标题加子项 / 删去本标题及子项 */
+.fh1-sub-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px 0; }
+.fh1-sub-del {
+    flex-shrink: 0;
+    padding: 1px 8px;
+    font-family: inherit;
+    font-size: 0.7rem;
+    line-height: 1.6;
+    color: #8b0020;
+    background: #fdf6e3;
+    border: 1px dashed rgba(139, 0, 32, 0.55);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.fh1-sub-del:hover { background: #8b0020; border-color: #8b0020; color: #fff; }
+
+/* ===== FH1 · 抽屉里「分组段落」的小标题勾选框与多行自定义输入 ===== */
+.fh1-ap-sec-head { justify-content: flex-start; gap: 8px; }
+.fh1-ap-sec-head .fh1-ap-caret { margin-left: auto; }
+.fh1-ap-groupbox { flex-shrink: 0; accent-color: var(--color-primary); }
+.fh1-ap-custom-col { flex-direction: column; align-items: stretch; }
+.fh1-ap-custom-title {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 9px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    color: var(--color-text-light);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    border-radius: 6px;
+    outline: none;
+}
+.fh1-ap-custom-col .fh1-ap-custom-input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 62px;
+    padding: 7px 9px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    line-height: 1.6;
+    color: var(--color-text-light);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    border-radius: 6px;
+    outline: none;
+    resize: vertical;
+}
+.fh1-ap-custom-title:focus, .fh1-ap-custom-col .fh1-ap-custom-input:focus { border-color: var(--color-primary); }
+.fh1-ap-custom-title::placeholder,
+.fh1-ap-custom-col .fh1-ap-custom-input::placeholder { color: rgba(253, 246, 227, 0.4); }
+.fh1-ap-custom-col .fh1-ap-custom-add { padding: 8px; }
+.fh1-ap-sec-body .fh1-ap-sec { margin-bottom: 6px; }
+
+/* ===== FH1 · 编辑模式下的操作按钮（小标题带的第二行） ===== */
+.fh1-sub-add {
+    flex-shrink: 0;
+    padding: 1px 8px;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: normal;
+    line-height: 1.6;
+    letter-spacing: 0;
+    color: #6b4b1f;
+    background: #fdf6e3;
+    border: 1px dashed rgba(184, 134, 11, 0.65);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.fh1-sub-add:hover { background: var(--color-primary-dark); border-color: var(--color-primary-dark); color: #fff; }
+
+/* ===== FH1 · 开局选择页（卡片 → 展开后不受卡片限制、完整展示） ===== */
+.fh1-start-wrap { width: 100%; }
+.fh1-start-list { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+.fh1-start-gate {
+    max-width: 560px;
+    margin: 14px auto;
+    padding: 20px 18px;
+    border: 1px dashed rgba(184, 134, 11, 0.5);
+    border-radius: 10px;
+    background: rgba(253, 246, 227, 0.4);
+    text-align: center;
+}
+.fh1-st-card {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 16px;
+    border: 1px solid rgba(184, 134, 11, 0.4);
+    border-radius: 10px;
+    background: rgba(253, 246, 227, 0.5);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.fh1-st-card:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12); border-color: var(--color-primary-dark); }
+.fh1-st-card-custom { border-style: dashed; }
+.fh1-st-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.fh1-st-name { font-size: 1rem; font-weight: bold; color: var(--color-primary-dark); letter-spacing: 1px; }
+.fh1-st-tag {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    color: #8b5a2b;
+    border: 1px solid rgba(184, 134, 11, 0.5);
+    border-radius: 999px;
+    padding: 1px 9px;
+    background: rgba(212, 175, 55, 0.12);
+}
+.fh1-st-sum { margin-top: 6px; font-size: 0.86rem; line-height: 1.6; color: #8a8a8a; }
+.fh1-st-detail { width: 100%; box-sizing: border-box; padding: 0 2px 8px 2px; }
+.fh1-st-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    border-bottom: 1px dashed rgba(184, 134, 11, 0.45);
+}
+.fh1-st-text {
+    font-size: 0.9rem;
+    line-height: 1.9;
+    color: var(--color-text-dark);
+    white-space: pre-wrap;        /* 正文原样换行、完整展示 */
+    word-break: break-word;
+}
+.fh1-st-custom {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 320px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    color: var(--color-text-dark);
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(184, 134, 11, 0.45);
+    border-radius: 8px;
+    outline: none;
+    resize: vertical;
+}
+.fh1-st-custom:focus { border-color: var(--color-primary-dark); }
+
+
+/* ===== 世界观调整页：给每块套回「浅色纸面」（搬到状态栏的前端样式是深字，必须配浅底） ===== */
+#mode-sections-2 .section {
+    background: #fdf6e3;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    padding: 12px 14px;
+    margin: 0 0 10px 0;
+}
+#mode-sections-2 .section:last-child { margin-bottom: 0; }
+#mode-sections-2 .fh1-wv-item,
+#mode-sections-2 .fh1-wv-name,
+#mode-sections-2 .fh1-wv-sub,
+#mode-sections-2 .wv-edit { color: #3e2723; }
+#mode-sections-2 .fh1-wv-era-full { color: #a08a6a; }
+#mode-sections-2 .fh1-wv-sum { color: #8a8a8a; }
+#mode-sections-2 .wv-head { border-bottom: 1px dashed rgba(184, 134, 11, 0.45); }
+#mode-sections-2 .wv-note { color: #8a5a2b; }
+/* 附录抽屉（故事日志面板里）：同样按浅色纸面处理内容区 */
+.story-log-content .fh1-ap-item { color: #3e2723; }
+.story-log-content .fh1-ap-item.added { color: #9c8b74; }
+.story-log-content .fh1-ap-note { color: #8a5a2b; background: rgba(212, 175, 55, 0.10); }
+.story-log-content .rule-input, .story-log-content .wv-apply { margin-top: 8px; }
