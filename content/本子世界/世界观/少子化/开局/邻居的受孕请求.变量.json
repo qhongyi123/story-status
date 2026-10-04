@@ -1,0 +1,48 @@
+{
+  "world": {
+    "date": "2026年5月10日 星期日",
+    "time": "傍晚",
+    "position": "江城 - 城东区 - 沈婉家中客厅"
+  },
+  "user": {
+    "identity": "常备授精师",
+    "body_state": "刚下班回家",
+    "inventory": {
+      "授精师识别手环": "暗金属色泽，具备读写功能"
+    },
+    "surroundings": "冷气混合柠檬沐浴露香味的客厅，切好的冰镇西瓜，祈求帮忙的邻居年轻母亲",
+    "psychological_description": "待更新"
+  },
+  "characters": {
+    "沈婉": {
+      "gender": "伊芙",
+      "age": "22岁",
+      "role": "在读本科生",
+      "affiliation": "某大学",
+      "relation": "邻居",
+      "ring": "待更新",
+      "pregnancy": "未受孕",
+      "state": "为女儿申请受孕而苦恼",
+      "location": "江城 - 城东区 - 沈婉家中客厅",
+      "present": "在场",
+      "favor": 50,
+      "attitude": "急切，套近乎",
+      "desc": "二十二岁却只有一米五出头的骨架，长相极为显小，像个初中生。"
+    },
+    "沈音": {
+      "gender": "伊芙",
+      "age": "11岁",
+      "role": "小学预备六年级学生",
+      "affiliation": "某小学",
+      "relation": "邻居的女儿",
+      "ring": "嫩绿色",
+      "pregnancy": "未受孕",
+      "state": "已提交受孕申请两年未等到，手环带有卷边磨损，在家做作业",
+      "location": "江城 - 城东区 - 沈婉家中卧室",
+      "present": "不在场",
+      "favor": 50,
+      "attitude": "好奇，期待",
+      "desc": "穿着校服衬衫，身段与母亲接近，常常被误认为沈婉的妹妹。"
+    }
+  }
+}
