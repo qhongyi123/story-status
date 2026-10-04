@@ -43,7 +43,7 @@ psychological_description: 用户第一人称内心独白
 
 角色变量规则
 父路径: characters
-二级路径: gender, age, role, ring, state, location, attitude, desc
+二级路径: gender (性别), age (年龄), role (身份或职务), affiliation (所属单位), relation (与用户的关系), ring (受精手环), pregnancy (受孕状态), state (当前状态), location (位置), present (是否在场), favor (对用户的好感度), attitude (对用户的态度), desc (性格与外貌)
 
 键 = 人名，值为该角色的对象。结识新人用 Insert，状态变化用 Edit，离场或不再相关用 Delete（值为 {}）。
 
@@ -53,18 +53,29 @@ age: 岁数或年龄段；Example: 13岁, 二十二三岁, 三十出头
 
 role: 身份或职务；Example: 授精部接待科职员, 地方授精部部长, 第三中学学生, 常备授精师, 待孕申请人
 
+affiliation: 所属单位，格式 {机构}[-{部门}]；Example: 第三中学, 授精部-申请科, 城东区居委会, 常备授精师事务所；check: 入职、调动、毕业或离职时
+
+relation: 与用户（玩家）的身份关系，多个用 / 分隔；Example: 同班同学, 妹妹, 上司, 邻居, 授精部对接职员；check: 关系确立或改变时
+
 ring: 受精手环（嫩绿色 | 红色 | 未到年龄无手环）；手环到期时间并入 state
 
-state: 当前状态，自由文本；Example: 待孕, 已提交申请待排号, 受孕两个月, 例假中, 受孕后已离岗, 今日当值；check: 受孕、离岗、职级或申请进度变化时
+pregnancy: 受孕状态（未受孕 | 受孕{数字}个月 | 产后{数字}个月）；Example: 未受孕, 受孕两个月, 产后一个月；check: 受孕、流产或生产时
+
+state: 当前状态，自由文本；Example: 待孕, 已提交申请待排号, 例假中, 今日当值, 已离岗；check: 离岗、职级或申请进度变化时
 
 location: 同【position】变量
 
-attitude: 对用户的态度；Example: 崇拜, 殷勤, 敬畏, 暗中较劲
+present: 是否在场（在场 | 不在场）；check: 进入或离开当前场景时
+
+favor: 对用户的好感度，0-100 的整数（0 = 敌视，50 = 中立，100 = 掏心掏肺）；Example: 62；check: 互动让观感明显变化时
+
+attitude: 对用户的态度（文字描述）；Example: 崇拜, 殷勤, 敬畏, 暗中较劲
 
 desc: 简短说明性格与外貌特征
 
-check: 结识新人、关系变动、聚散、受孕与否、职级升降、位置转移时
-注: 除 gender 外，其余字段若暂时留空或未确定，统一填写 "待更新"。
+check: 结识新人、关系变动、聚散、受孕与否、职级升降、位置转移、进出场景、好感变化时
+注 1: 除 gender 外，其余字段若暂时留空或未确定，统一填写 "待更新"。
+注 2: 只维护上面列出的字段。对象里若出现其它字段，一律不要改动、不要删除，也不要写进正文。
 
 Example:
 
@@ -73,9 +84,14 @@ Example:
     "gender": "伊芙",
     "age": "13岁",
     "role": "授精部接待科职员",
+    "affiliation": "授精部-接待科",
+    "relation": "授精部对接职员",
     "ring": "嫩绿色",
+    "pregnancy": "未受孕",
     "state": "接待科当值，手环剩余两个月",
     "location": "江城 - 城东区 - 授精部一楼大厅",
+    "present": "不在场",
+    "favor": 62,
     "attitude": "崇拜，殷勤",
     "desc": "梳双丫髻，说话脆生生的，抢着接机的那个。"
   }

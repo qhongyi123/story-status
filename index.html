@@ -3,6 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <base href="https://qhongyi123.github.io/story-status/">
+<!-- 本机预览（2026-10-04 修）：直接用浏览器打开本文件时是 file://，上面的 <base> 会把
+     所有相对路径（css/status.css、js/status.js、demo/demo-data.js）都指到线上仓库，
+     于是本地改的代码看不到、demo 数据 404、状态栏一片空白——「本地打开 index.html
+     用 demo 数据预览」这条路就是被 <base> 弄坏的。
+     这里只在 file:// 下把 <base> 摘掉；酒馆里是 http(s)，绝不会误伤。
+     注意：必须在下面 <link>/<script> 之前执行。 -->
+<script>
+(function () {
+    if (location.protocol !== 'file:') { return; }
+    var b = document.querySelector('base');
+    if (b && b.parentNode) { b.parentNode.removeChild(b); }
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>角色状态面板 - Bookmark Pagination</title>
 <link rel="stylesheet" href="css/status.css">

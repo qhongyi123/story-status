@@ -1816,6 +1816,61 @@ body {
 .rule-card-body .rule-intro { margin-left: 0; }
 .rule-card-body .rule-modes, .rule-card-body .rule-fillbar, .rule-card-body .rule-entries { margin-left: 0; }
 
+/* ===== 第 4 页角色状态：一人一张卡（卡头只放名字＋一行摘要，点开才铺 8 个字段） ===== */
+.ch-card {
+    margin: 10px 0; border: 1px solid var(--color-border); border-radius: 10px;
+    background: rgba(212, 175, 55, 0.05); overflow: hidden;
+}
+.ch-card.open { box-shadow: 0 3px 10px rgba(0, 0, 0, 0.10); }
+.ch-head {
+    display: flex; align-items: center; gap: 10px;
+    min-height: 58px; padding: 12px 14px; cursor: pointer;
+}
+.ch-head:hover { background: rgba(212, 175, 55, 0.12); }
+.ch-name {
+    flex: none; font-size: 1.12rem; font-weight: bold; letter-spacing: 1px;
+    color: var(--color-primary-dark); word-break: break-word;
+}
+.ch-brief {
+    flex: 1; min-width: 0; font-size: 0.78rem; color: var(--color-accent);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ch-arrow { flex-shrink: 0; font-size: 0.9rem; color: var(--color-accent); }
+.ch-body { padding: 2px 14px 12px 14px; border-top: 1px dashed rgba(184, 134, 11, 0.35); }
+.ch-row {
+    display: flex; align-items: flex-start; gap: 8px; padding: 5px 0;
+    font-size: 0.86rem; border-bottom: 1px dashed rgba(184, 134, 11, 0.18);
+}
+.ch-row:last-child { border-bottom: none; }
+.ch-label { flex: none; width: 5.8em; color: var(--color-accent); }
+.ch-value { flex: 1; min-width: 0; color: var(--color-text-dark); line-height: 1.7; word-break: break-word; }
+.ch-value i { font-style: normal; opacity: 0.5; }
+.ch-input {
+    flex: 1; min-width: 0; padding: 5px 8px;
+    font-family: inherit; font-size: 0.86rem; color: var(--color-text-dark);
+    background: var(--color-paper); border: 1px solid var(--color-border); border-radius: 6px; outline: none;
+}
+.ch-input:focus { border-color: var(--color-primary-dark); }
+.ch-row-del { border-bottom: none; }
+.ch-del {
+    padding: 3px 12px; font-family: inherit; font-size: 0.78rem;
+    color: var(--color-delete); background: transparent;
+    border: 1px solid rgba(128, 0, 32, 0.5); border-radius: 999px; cursor: pointer;
+}
+.ch-del:hover { background: var(--color-delete); border-color: var(--color-delete); color: #fff; }
+/* 解锁提示（只有规则解锁了角色编辑才出现；默认只读时不显示任何说明） */
+.ch-unlock {
+    margin: 8px 0 2px 0; padding: 9px 11px; border-radius: 8px;
+    font-size: 0.82rem; line-height: 1.7;
+    color: var(--color-text-dark); background: rgba(212, 175, 55, 0.16);
+    border: 1px solid rgba(212, 175, 55, 0.55);
+}
+.ch-edit-switch {
+    display: inline-flex; align-items: center; gap: 5px; margin-left: 12px;
+    font-size: 0.82rem; color: var(--color-primary); cursor: pointer;
+}
+.ch-edit-switch input { accent-color: var(--color-primary-dark); }
+
 /* ===== 状态栏自定义弹窗（替代浏览器原生 alert/confirm/prompt） ===== */
 .rv-modal { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; }
 .rv-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); }

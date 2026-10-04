@@ -4439,6 +4439,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             st.source = st.draft.name;
             st.loadedOnce = true;
+            chSt.fields = null;   // 刚刚可能换了变量规则（uid 28）→ 角色页下次进来重读字段表
             await rvAlert('已写入世界书：\n世界观 uid ' + UID_WORLD + '（' + assembleWorld(st.draft).length + ' 字）' +
                 '\n社会生态 uid ' + UID_ECO +
                 (st.draft.varRulesFree ? '\n变量规则 uid ' + UID_VARRULES : ''));
@@ -4650,26 +4651,293 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         SECTION_RENDERERS.rules = function (data, container) { renderRules(container); };
-        SECTION_RENDERERS.characters = function (data, container) {
-            var chars = (data && data.raw && data.raw.characters) || {};
-            var names = Object.keys(chars);
-            var html = '<div class="section"><div class="wv-head"><span class="wv-title">角色状态</span>' +
-                '<span class="wv-cur">共 ' + names.length + ' 人</span></div>';
-            if (!names.length) {
-                html += '<div class="wv-note">框架已就位：数据存在变量 <code>characters</code> 里（由 AI 维护）。' +
-                    '界面形式待定，先按变量原样列一遍：</div>';
-            } else {
-                html += '<div class="wv-note">界面形式待定，先按变量原样列出：</div>';
-                names.forEach(function (n) {
-                    var c = chars[n] || {};
-                    html += '<div class="wv-char"><div class="wv-char-name">' + esc(n) + '</div>' +
-                        '<div class="wv-char-line">' + ['gender', 'age', 'role', 'ring', 'state', 'location', 'attitude', 'desc']
-                            .filter(function (k) { return c[k]; })
-                            .map(function (k) { return esc(k) + '：' + esc(c[k]); }).join('　') + '</div></div>';
-                });
+
+        /* ================= 第 4 页：角色状态（变量 characters，AI 维护） =================
+         * 默认**只读**：角色由 AI 在剧情里记录，状态栏只负责看。
+         * 想让玩家在状态栏里直接改，需要在「特殊规则」里开启一条带 `解锁：角色编辑` 的规则
+         * （规则 txt 里加一行，走生成器进 rules-presets.js 的 unlock 字段）——**不用改代码**，
+         * 这样"能不能改"这件事本身也由规则说了算，和「修改他人和自己的关系」这类规则是同一套机制。
+         * ============================================================================ */
+
+        // #region 角色页纯逻辑（工具\测试角色状态页.js 按这两个标记切出来离线跑）
+        // 字段表**以变量规则为准**：从 uid 28「角色变量规则」的「二级路径」行解析（键 ＋ 中文标签）。
+        // 每套世界观写自己的字段表（伊菈优待没有受精手环；大小之争有教派与 dio 大小），页面跟着变。
+        // CHAR_FALLBACK_FIELDS 只在读不到变量规则时兜底（＝少子化那套），改变量规则时这里也一起改。
+        var CHAR_FALLBACK_FIELDS = [
+            ['gender', '性别'],
+            ['age', '年龄'],
+            ['role', '身份或职务'],
+            ['affiliation', '所属单位'],
+            ['relation', '与用户的关系'],
+            ['ring', '受精手环'],
+            ['pregnancy', '受孕状态'],
+            ['state', '当前状态'],
+            ['location', '位置'],
+            ['present', '是否在场'],
+            ['favor', '对用户的好感度'],
+            ['attitude', '对用户的态度'],
+            ['desc', '性格与外貌']
+        ];
+        // 玩家私有字段：**故意不写进变量规则**，好让 AI 不知道有它们；永远追加在字段表最后
+        var CHAR_PLAYER_ONLY = [['note', '小笔记（只有你看得到）']];
+        var CHAR_BRIEF_FIELDS = ['gender', 'age', 'role'];   // 卡头那一行只显示这几项
+
+        // 从变量规则正文里取「角色变量规则」那一段的「二级路径」行 → [[键, 中文标签], ...]
+        // 行格式：gender (性别), age (年龄), ……；括号可省略，那就标签＝键
+        function parseCharFields(varRulesText) {
+            var t = String(varRulesText || '').replace(/\r\n/g, '\n');
+            var m = /角色变量规则[\s\S]*?二级路径:\s*([^\n]+)/.exec(t);
+            if (!m) { return null; }
+            var out = [];
+            m[1].split(',').forEach(function (part) {
+                var hit = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:[(（]([^)）]*)[)）])?\s*$/.exec(part);
+                if (hit) { out.push([hit[1], String(hit[2] || hit[1]).trim()]); }
+            });
+            return out.length ? out : null;
+        }
+
+        // 最终字段表 ＝ 变量规则里的字段 ＋ 永远追加的玩家私有字段（同名不重复加）
+        function mergeCharFields(fromRules) {
+            var base = (fromRules && fromRules.length ? fromRules : CHAR_FALLBACK_FIELDS)
+                .map(function (f) { return [f[0], f[1]]; });
+            var keys = base.map(function (f) { return f[0]; });
+            CHAR_PLAYER_ONLY.forEach(function (f) {
+                if (keys.indexOf(f[0]) === -1) { base.push([f[0], f[1]]); }
+            });
+            return base;
+        }
+
+        // 卡头那一行：只挑有值的项用 ・ 连起来
+        function charBrief(ch) {
+            var parts = [];
+            CHAR_BRIEF_FIELDS.forEach(function (k) {
+                var v = (ch || {})[k];
+                if (v !== undefined && v !== null && String(v).trim() !== '') parts.push(String(v).trim());
+            });
+            return parts.join(' · ');
+        }
+
+        // 哪几条**已启用**的规则解锁了某个能力；cap 省略时只问「有没有解锁角色编辑」
+        function charUnlockedBy(rulesObj, presets, cap) {
+            var want = cap || '角色编辑', R = rulesObj || {}, out = [];
+            (presets || []).forEach(function (p) {
+                if (R[p.name] === undefined) return;
+                var u = p.unlock || [];
+                for (var i = 0; i < u.length; i++) {
+                    if (String(u[i]).trim() === want) { out.push(p.name); return; }
+                }
+            });
+            return out;
+        }
+
+        // 只保留与旧值不同的字段；没有变化返回 null（避免无谓写变量）
+        // keys 省略时用兜底字段表
+        function charDiff(oldCh, newCh, keys) {
+            var out = {}, any = false;
+            var ks = keys || CHAR_FALLBACK_FIELDS.map(function (f) { return f[0]; });
+            ks.forEach(function (k) {
+                var a = String((oldCh || {})[k] === undefined || (oldCh || {})[k] === null ? '' : oldCh[k]).trim();
+                var b = String((newCh || {})[k] === undefined || (newCh || {})[k] === null ? '' : newCh[k]).trim();
+                if (a !== b) { out[k] = b; any = true; }
+            });
+            return any ? out : null;
+        }
+
+        // 一个角色一张卡：卡头＝名字＋性别・年龄・身份；点开才铺该世界观字段表里的每一项
+        function charCardHtml(name, ch, open, editing, fields) {
+            var h = '<div class="ch-card' + (open ? ' open' : '') + '">';
+            h += '<div class="ch-head" data-act="ch-open" data-name="' + esc(name) + '">' +
+                    '<span class="ch-name">' + esc(name) + '</span>' +
+                    '<span class="ch-brief">' + esc(charBrief(ch)) + '</span>' +
+                    '<span class="ch-arrow">' + (open ? '\u25BE' : '\u25B8') + '</span>' +
+                 '</div>';
+            if (!open) { return h + '</div>'; }
+            h += '<div class="ch-body">';
+            (fields && fields.length ? fields : mergeCharFields(null)).forEach(function (f) {
+                var k = f[0], v = (ch || {})[k];
+                var has = (v !== undefined && v !== null && String(v).trim() !== '');
+                h += '<div class="ch-row"><span class="ch-label">' + esc(f[1]) + '</span>' +
+                    (editing
+                        ? '<input class="ch-input" type="text" data-ch-field="' + k + '" data-ch-name="' + esc(name) + '"' +
+                          ' value="' + esc(has ? v : '') + '" placeholder="待更新">'
+                        : '<span class="ch-value">' + (has ? esc(v) : '<i>待更新</i>') + '</span>') +
+                    '</div>';
+            });
+            if (editing) {
+                h += '<div class="ch-row ch-row-del">' +
+                    '<button class="ch-del" data-act="ch-del" data-name="' + esc(name) + '">\u2715 删去这个角色</button></div>';
             }
+            h += '</div></div>';
+            return h;
+        }
+        // #endregion 角色页纯逻辑
+
+        var chSt = { open: {}, editing: false, draft: null, fields: null };   // 展开状态 / 编辑模式 / 编辑草稿 / 当前字段表
+
+        function charsVar() {
+            var raw = (App.state.parsedData && App.state.parsedData.raw) || {};
+            return raw.characters || {};
+        }
+        function charsCanEdit() { return charUnlockedBy(rulesVar(), rulePresets()).length > 0; }
+        function charsSource() { return (chSt.editing && chSt.draft) ? chSt.draft : charsVar(); }
+        function charsFields() { return chSt.fields || mergeCharFields(null); }
+        function charsFieldKeys() { return charsFields().map(function (f) { return f[0]; }); }
+
+        // 字段表从世界书 uid 28「角色变量规则」读 —— 每次进这一页读一次，之后点卡片不再重复读
+        async function loadCharFields() {
+            var text = '';
+            try { text = await readEntry(UID_VARRULES); } catch (e) { console.warn('读变量规则失败', e); }
+            var parsed = parseCharFields(text);
+            chSt.fields = mergeCharFields(parsed);
+            if (!parsed) { console.warn('状态栏·角色状态：没从 uid ' + UID_VARRULES + ' 读到「角色变量规则」，先用兜底字段表'); }
+            return chSt.fields;
+        }
+
+        function renderChars(container) {
+            var canEdit = charsCanEdit();
+            if (!canEdit) { chSt.editing = false; chSt.draft = null; }
+            var chars = charsSource();
+            var names = Object.keys(chars);
+            var fields = charsFields();
+            var unlocked = canEdit ? charUnlockedBy(rulesVar(), rulePresets()) : [];
+
+            var html = '<div class="section"><div class="wv-head">' +
+                '<span class="wv-title">角色状态</span>' +
+                '<span class="wv-cur">共 ' + names.length + ' 人' +
+                    (canEdit ? '<label class="ch-edit-switch"><input type="checkbox" data-act="ch-edit"' +
+                        (chSt.editing ? ' checked' : '') + '>编辑模式</label>' : '') +
+                '</span></div>';
+
+            if (canEdit) {
+                html += '<div class="ch-unlock">已由规则解锁编辑：' + esc(unlocked.join('、')) +
+                    '　改完记得点下面的「保存（写入变量）」。</div>';
+            }
+
+            if (!names.length) {
+                html += '<div class="wv-note">还没有角色。等剧情里结识了人，AI 会把它们记进变量 <code>characters</code>。</div>';
+            } else {
+                names.forEach(function (n) { html += charCardHtml(n, chars[n], !!chSt.open[n], chSt.editing, fields); });
+            }
+
+            if (canEdit && chSt.editing) {
+                html += '<div class="wv-bar">' +
+                    '<button class="wv-apply" data-act="ch-add">\uFF0B 新增角色</button>' +
+                    '<button class="wv-apply" data-act="ch-save">\u25B6 保存（写入变量）</button>' +
+                    '<button class="wv-apply" data-act="ch-cancel">放弃改动</button>' +
+                '</div>';
+            }
+
             html += '</div>';
             container.innerHTML = html;
+        }
+
+        // 把界面上的输入收回草稿（收起状态的卡没有 input，自然保持原值）
+        function syncChars(container) {
+            if (!chSt.editing || !chSt.draft) return;
+            container.querySelectorAll('[data-ch-field]').forEach(function (inp) {
+                var n = inp.getAttribute('data-ch-name'), k = inp.getAttribute('data-ch-field');
+                if (chSt.draft[n]) chSt.draft[n][k] = inp.value;
+            });
+        }
+
+        async function charsRefresh(container) {
+            try {
+                var raw = await App.parsers.getVariableData();
+                App.state.parsedData = App.parsers.parseData(raw);
+            } catch (e) { console.warn('刷新变量失败', e); }
+            chSt.editing = false; chSt.draft = null;
+            renderChars(container);
+        }
+
+        async function saveChars(container) {
+            syncChars(container);
+            var oldCh = charsVar(), newCh = chSt.draft || {};
+            var upd = {}, ins = {}, del = {};
+            Object.keys(newCh).forEach(function (n) {
+                if (oldCh[n] === undefined) { ins[n] = newCh[n]; return; }
+                var d = charDiff(oldCh[n], newCh[n], charsFieldKeys());
+                if (d) { upd[n] = d; }
+            });
+            Object.keys(oldCh).forEach(function (n) { if (newCh[n] === undefined) { del[n] = {}; } });
+            var nu = Object.keys(upd).length, ni = Object.keys(ins).length, nd = Object.keys(del).length;
+            if (!nu && !ni && !nd) { await rvAlert('没有改动。'); return; }
+            if (!await rvConfirm('写回变量 characters？\n修改 ' + nu + ' 人 ／ 新增 ' + ni + ' 人 ／ 删去 ' + nd + ' 人')) return;
+            try {
+                if (nu) window.eventEmit('era:updateByObject', { characters: upd });
+                if (ni) window.eventEmit('era:insertByObject', { characters: ins });
+                if (nd) window.eventEmit('era:deleteByObject', { characters: del });
+            } catch (e) { await rvAlert('写入变量失败：' + ((e && e.message) || e)); return; }
+            await new Promise(function (r) { setTimeout(r, 300); });   // 等变量落盘
+            await charsRefresh(container);
+            await rvAlert('已写回变量：修改 ' + nu + ' 人 ／ 新增 ' + ni + ' 人 ／ 删去 ' + nd + ' 人');
+        }
+
+        function bindChars(container) {
+            if (container.getAttribute('data-ch-bound')) return;
+            container.setAttribute('data-ch-bound', '1');
+
+            // 编辑模式开关是 checkbox，用 change
+            container.addEventListener('change', function (ev) {
+                var t = ev.target;
+                if (!t || !t.getAttribute || t.getAttribute('data-act') !== 'ch-edit') return;
+                syncChars(container);
+                chSt.editing = !!t.checked;
+                chSt.draft = chSt.editing ? JSON.parse(JSON.stringify(charsVar())) : null;
+                renderChars(container);
+            });
+
+            container.addEventListener('click', async function (ev) {
+                var el = ev.target.closest ? ev.target.closest('[data-act]') : null;
+                if (!el || !container.contains(el)) return;
+                var act = el.getAttribute('data-act');
+                if (act.indexOf('ch-') !== 0 || act === 'ch-edit') return;
+                var name = el.getAttribute('data-name') || '';
+
+                if (act === 'ch-open') { syncChars(container); chSt.open[name] = !chSt.open[name]; renderChars(container); return; }
+
+                if (act === 'ch-del') {
+                    syncChars(container);
+                    if (!await rvConfirm('从变量里删去角色「' + name + '」？\n（要点「保存」才会真正写入）')) { renderChars(container); return; }
+                    if (chSt.draft) { delete chSt.draft[name]; }
+                    delete chSt.open[name];
+                    renderChars(container);
+                    return;
+                }
+
+                if (act === 'ch-add') {
+                    syncChars(container);
+                    var nm = await rvPrompt('新角色的名字（变量里的键）：', '');
+                    if (nm === null) return;
+                    nm = String(nm).trim();
+                    if (!nm) { await rvAlert('名字不能为空。'); return; }
+                    if (chSt.draft && chSt.draft[nm]) { await rvAlert('已经有「' + nm + '」了。'); return; }
+                    var blank = {};
+                    charsFieldKeys().forEach(function (k) { blank[k] = '待更新'; });
+                    blank.gender = '';
+                    chSt.draft[nm] = blank;
+                    chSt.open[nm] = true;
+                    renderChars(container);
+                    return;
+                }
+
+                if (act === 'ch-save') { await saveChars(container); return; }
+
+                if (act === 'ch-cancel') {
+                    if (!await rvConfirm('放弃这一轮的改动？')) { renderChars(container); return; }
+                    chSt.editing = false; chSt.draft = null;
+                    renderChars(container);
+                    return;
+                }
+            });
+        }
+
+        SECTION_RENDERERS.characters = function (data, container) {
+            // 字段表来自世界书 uid 28，而每套世界观的字段不一样 → 第一次进来读一次，之后缓存
+            // （点开/收起卡片走 renderChars，不会再读世界书）
+            bindChars(container);
+            if (chSt.fields) { renderChars(container); return; }
+            container.innerHTML = '<div class="section"><div class="wv-note">正在读取变量规则…</div></div>';
+            loadCharFields().then(function () { renderChars(container); });
         };
 
         // 页键：第 2 页世界观调整／第 3 页特殊规则／第 4 页角色状态
