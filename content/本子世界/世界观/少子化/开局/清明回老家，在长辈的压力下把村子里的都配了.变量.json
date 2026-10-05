@@ -1,0 +1,44 @@
+{
+  "world": {
+    "date": "2026年4月5日 星期日",
+    "position": "老家村里 - 祖宅院子",
+    "time": "下午"
+  },
+  "user": {
+    "identity": "外派授精师",
+    "surroundings": "逼仄陈旧的院子, 麻将声, 炖肉的油膻味, 无数双充满欲求和期待的眼睛",
+    "psychological_description": "被彻底架在火上烤了。这帮亲戚根本不是在讲道理，这是要直接压头。时间就两天的空当，不给个痛快话这顿饭绝对吃不到嘴里去了。"
+  },
+  "characters": {
+    "初中表妹": {
+      "gender": "伊芙",
+      "age": "十五岁出头",
+      "role": "初中生",
+      "affiliation": "某初级中学",
+      "relation": "表妹",
+      "ring": "未到年龄无手环",
+      "pregnancy": "未受孕",
+      "state": "沉迷手机游戏，排拒早孕",
+      "location": "老家村里 - 祖宅院子",
+      "present": "在场",
+      "favor": 40,
+      "attitude": "抗拒，赌气",
+      "desc": "在门槛玩手机，不想这么早生孩子的初中生。"
+    },
+    "高中表妹": {
+      "gender": "伊芙",
+      "age": "十七八岁",
+      "role": "高中生",
+      "affiliation": "某高级中学",
+      "relation": "表妹",
+      "ring": "嫩绿色",
+      "pregnancy": "未受孕",
+      "state": "渴望受孕，焦灼等待",
+      "location": "老家村里 - 祖宅院子",
+      "present": "在场",
+      "favor": 80,
+      "attitude": "饥渴，沉默且赤裸的觊觎",
+      "desc": "坐在屋檐下剥豆子，一直盯着下半身的高中生。"
+    }
+  }
+}

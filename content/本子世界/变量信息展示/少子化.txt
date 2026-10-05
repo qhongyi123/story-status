@@ -1,0 +1,47 @@
+<%_
+/* =====================================================================
+ * 少子化世界观 · 变量信息展示（对应世界书 uid 11「最新状态·本子世界」）
+ * ---------------------------------------------------------------------
+ * 作用：把"当前变量树里有哪些键、值是什么"直接摆给 AI 看，并逐条告诉它：
+ *   · 该键已经存在  → 后续更新用 <VariableEdit>
+ *   · 该键还没出现  → 需要时用 <VariableInsert> 新建
+ * 键名一律照抄英文，不要翻译、不要改大小写。
+ * 由前端「启用并继续」在玩家选中少子化时写入 uid 11。
+ * ===================================================================== */
+var _paths = [
+    'world.date', 'world.time', 'world.position',
+    'user.identity', 'user.body_state', 'user.inventory',
+    'user.surroundings', 'user.psychological_description',
+    'characters'
+];
+var _get = function (p) { try { return getvar('stat_data.' + p); } catch (e) { return undefined; } };
+var _fmt = function (v) {
+    try {
+        if (v === undefined || v === null) return '';
+        if (typeof v === 'object') return JSON.stringify(v);
+        return String(v);
+    } catch (e) { return ''; }
+};
+var _chars = _get('characters');
+var _charNames = (_chars && typeof _chars === 'object') ? Object.keys(_chars) : [];
+_%>
+【变量信息·少子化】以下是当前变量树的键与内容。键名一律用英文原样照抄，不要翻译。
+
+<%_ _paths.forEach(function (p) { var _v = _get(p); var _has = (_v !== undefined); _%>
+· stat_data.<%= p %>：<%= _has ? _fmt(_v) : '（未出现）' %>
+  → <%= _has ? '已存在：更新它用 <VariableEdit>' : '未出现：需要时用 <VariableInsert> 新建' %>
+<%_ }); _%>
+<%_ if (_charNames.length) { _%>
+· stat_data.characters 现有角色：<%= _charNames.join('、') %>
+<%_ } else { _%>
+· stat_data.characters：（未出现）→ 需要时用 <VariableInsert> 新建
+<%_ } _%>
+· stat_data.characters.{角色名}：每个角色一条，键＝角色名，字段固定为
+  gender / age / role / affiliation / relation / ring / pregnancy / state / location / present / favor / attitude / desc
+  → 角色已存在就 <VariableEdit> 改它的字段；角色是新的就 <VariableInsert> 新建一条。
+
+【写法要求】
+1. 上面标"已存在"的键，后续更新一律用 <VariableEdit>；**不要**再用 <VariableInsert> 重复建同一个键。
+2. 上面标"未出现"的键，需要时才用 <VariableInsert> 新建。
+3. 只改发生变化的字段，没变化的键不要动；不要删除没有提到的键。
+4. <VariableEdit> 里的路径照抄上面的英文键（例如 world.position、user.body_state、characters.角色名.favor）。
