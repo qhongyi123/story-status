@@ -3935,7 +3935,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * 特殊规则／角色状态：本轮只搭框架（渲染器已注册、变量已定），内容后续再做。
      * ===================================================================== */
     (function () {
-        var UID_WORLD = 54, UID_ECO = 69, UID_VARRULES = 28;
+        var UID_WORLD = 54, UID_ECO = 69, UID_VARRULES = 28, UID_VARDISPLAY = 11;
         var LABELS = { '世界风格': '风格', '社会与法治': '社会与法治', '民俗风情': '民俗风情' };
         var st = { draft: null, source: '', editing: false, ecoSel: 0, err: '', busy: false, loadedOnce: false };
         var cachedHost = null;
@@ -4119,7 +4119,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     var d = parseWorldText(wt);
                     d.ecology = { blocks: parseEcoText(et, d.name) };
                     var p = presets()[d.name];
-                    d.varRulesFree = p ? (p.varRulesFree || '') : '';
+                    // 变量规则：规则是按「版本」写的话，前端点「启用并继续」会把对应那版写进 uid 28；
+                    //   状态栏这里认不出当前是哪一版，所以 uid 28 里已经有内容就**不覆盖**（免得把玩家选的那版冲成共用版），
+                    //   只有 uid 28 还空着时才补上世界观级那份。
+                    var curRules = '';
+                    try { curRules = await readEntry(UID_VARRULES); } catch (e2) { curRules = ''; }
+                    var hasVers = !!(p && p.versions && p.versions.length);
+                    d.varRulesFree = (hasVers && String(curRules || '').trim())
+                        ? String(curRules)
+                        : (p ? (p.varRulesFree || '') : '');
+                    d.varDisplay = p ? (p.varDisplay || '') : '';
                     st.draft = d; st.source = d.name || ''; st.ecoSel = 0; st.editing = false;
                 } else {
                     st.draft = null; st.err = '世界书 uid ' + UID_WORLD + ' 还是空的——先在下面选一套世界观，点「应用」写进去。';
@@ -4194,6 +4203,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     '<span>' + esc(text) + '</span>' + (added ? '<em class="fh1-ap-tag">已添加</em>' : '') + '</label>';
             }).join('');
         }
+        // 一个附录分组（本世界观的其他版本／其他世界观的各版本都用它画）；这一段没内容就不画
+        function apSecHtml(label, src, segKey, isGroup, hasMap) {
+            var ap = (src && src.appendix) || {};
+            if (isGroup) {
+                var gs = (ap.groups && ap.groups[segKey]) || [];
+                if (!gs.length) return '';
+                return '<div class="fh1-ap-sec"><div class="fh1-ap-sec-head"><span class="fh1-ap-sec-title">' + esc(label) + '</span></div>' +
+                    '<div class="fh1-ap-sec-body">' + gs.map(function (g) {
+                        return '<div class="fh1-sub-chip">' + esc(g.title) + '</div>' + apBoxes(g.items, {}, g.title);
+                    }).join('') + '</div></div>';
+            }
+            var oi = (ap.sections && ap.sections[segKey]) || [];
+            if (!oi.length) return '';
+            return '<div class="fh1-ap-sec"><div class="fh1-ap-sec-head"><span class="fh1-ap-sec-title">' + esc(label) + '</span></div>' +
+                '<div class="fh1-ap-sec-body">' + apBoxes(oi, hasMap, '') + '</div></div>';
+        }
         function openAppendix(segKey) {
             var panel = document.getElementById('story-log-panel'), content = document.getElementById('story-log-content');
             if (!panel || !content) { rvAlert('找不到「故事日志」面板'); return; }
@@ -4211,19 +4236,30 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 html += apBoxes((p.appendix && p.appendix.sections && p.appendix.sections[segKey]) || [], hasMap, '');
             }
+            // ①-B 同一个世界观的其他版本（状态栏没有"当前版本"的概念，所以本世界观的版本全列）
+            ((p.versions) || []).forEach(function (v) {
+                html += apSecHtml(d.name + '\u00B7' + v.name + '-' + segKey, v, segKey, isGroup, hasMap);
+            });
             order().forEach(function (n) {
                 if (n === d.name) return;
                 var o = presets()[n] || {};
+                // ⚠ 这里不能用 return 提前退出：本体这一段为空时，仍要继续往下画它的各个版本
                 if (isGroup) {
                     var og = (o.appendix && o.appendix.groups && o.appendix.groups[segKey]) || [];
-                    if (!og.length) return;
-                    html += '<div class="fh1-ap-sec"><div class="fh1-ap-sec-head"><span class="fh1-ap-sec-title">' + esc(n) + '-' + esc(segKey) + '</span></div><div class="fh1-ap-sec-body">' +
-                        og.map(function (g) { return '<div class="fh1-sub-chip">' + esc(g.title) + '</div>' + apBoxes(g.items, {}, g.title); }).join('') + '</div></div>';
+                    if (og.length) {
+                        html += '<div class="fh1-ap-sec"><div class="fh1-ap-sec-head"><span class="fh1-ap-sec-title">' + esc(n) + '-' + esc(segKey) + '</span></div><div class="fh1-ap-sec-body">' +
+                            og.map(function (g) { return '<div class="fh1-sub-chip">' + esc(g.title) + '</div>' + apBoxes(g.items, {}, g.title); }).join('') + '</div></div>';
+                    }
                 } else {
                     var oi = (o.appendix && o.appendix.sections && o.appendix.sections[segKey]) || [];
-                    if (!oi.length) return;
-                    html += '<div class="fh1-ap-sec"><div class="fh1-ap-sec-head"><span class="fh1-ap-sec-title">' + esc(n) + '-' + esc(segKey) + '</span></div><div class="fh1-ap-sec-body">' + apBoxes(oi, hasMap, '') + '</div></div>';
+                    if (oi.length) {
+                        html += '<div class="fh1-ap-sec"><div class="fh1-ap-sec-head"><span class="fh1-ap-sec-title">' + esc(n) + '-' + esc(segKey) + '</span></div><div class="fh1-ap-sec-body">' + apBoxes(oi, hasMap, '') + '</div></div>';
+                    }
                 }
+                // ②-B 那个世界观的各个版本（例：少子化选中时，常识扭曲三个版本各一组）
+                ((o.versions) || []).forEach(function (v) {
+                    html += apSecHtml(n + '\u00B7' + v.name + '-' + segKey, v, segKey, isGroup, hasMap);
+                });
             });
             html += (isGroup ? '<input type="text" id="ap-new-group" class="rule-input" placeholder="新建小标题名称（给已有小标题加子项时也要填它）">' : '') +
                 '<input type="text" id="ap-custom" class="rule-input" placeholder="' + (isGroup ? '子项内容，一行一条' : '自定义一条内容') + '">' +
@@ -4292,42 +4328,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<div class="fh1-wv-sum">' + esc(d.summary || '') + '</div>' +
             '</div>';
 
-            // 平铺段落
-            (d.segments || []).forEach(function (s, i) {
+            // 平铺段落（**0 条的段落整段不画**：这套世界观没有这一段，连「＋ 添加」一起不显示）
+            (d.segments || []).filter(function (s) { return (s.items || []).length > 0; }).forEach(function (s, i) {
                 html += '<div class="section"><div class="fh1-wv-seg">' +
                     '<div class="fh1-wv-seg-title"><span>' + esc(s.key) + '</span>' + plusBtn(s.key) + '</div>' +
                     ((s.items || []).map(function (t, j) { return itemRow('seg', i, j, t.replace(/^-\s*/, '')); }).join('') ||
                         '<div class="fh1-hint">（这一段还没有条目）</div>') +
                     '</div></div>';
             });
-            // 背景设定（小标题带 + 当前小标题的子项）
+            // 背景设定（小标题带 + 当前小标题的子项）——没有小标题就整段不画
             var bg = d.background || [];
-            html += '<div class="section"><div class="fh1-wv-seg"><div class="fh1-wv-seg-title"><span>背景设定</span>' + plusBtn('背景设定') + '</div>';
             if (bg.length) {
+                html += '<div class="section"><div class="fh1-wv-seg"><div class="fh1-wv-seg-title"><span>背景设定</span>' + plusBtn('背景设定') + '</div>';
                 var bi = Math.min(Math.max(state_bg(), 0), bg.length - 1);
                 set_bg(bi);
                 html += subStrip('bg', bg.map(function (g) { return g.title; }), bi) +
                     subActions('bg', bi, (bg[bi].items || []).length) +
                     ((bg[bi].items || []).map(function (t, j) { return itemRow('bg', bi, j, t.replace(/^-\s*/, '')); }).join('') ||
                         '<div class="fh1-hint">（这个小标题下还没有子项）</div>');
-            } else {
-                html += '<div class="fh1-hint">（这套世界观还没有背景设定小标题）</div>';
+                html += '</div></div>';
             }
-            html += '</div></div>';
-            // 社会生态
+            // 社会生态 —— 没有块就整段不画
             var blocks = (d.ecology && d.ecology.blocks) || [];
-            html += '<div class="section"><div class="fh1-wv-seg"><div class="fh1-wv-seg-title"><span>社会生态</span>' + plusBtn('社会生态') + '</div>';
             if (blocks.length) {
+                html += '<div class="section"><div class="fh1-wv-seg"><div class="fh1-wv-seg-title"><span>社会生态</span>' + plusBtn('社会生态') + '</div>';
                 var ei = Math.min(Math.max(st.ecoSel | 0, 0), blocks.length - 1);
                 st.ecoSel = ei;
                 html += subStrip('eco', blocks.map(function (b) { return b.title || b.label; }), ei) +
                     subActions('eco', ei, (blocks[ei].items || []).length) +
                     ((blocks[ei].items || []).map(function (t, j) { return itemRow('eco', ei, j, t.replace(/^-\s*/, '')); }).join('') ||
                         '<div class="fh1-hint">（这一块还没有子项）</div>');
-            } else {
-                html += '<div class="fh1-hint">（这套世界观还没有生态内容）</div>';
+                html += '</div></div>';
             }
-            html += '</div></div>';
             // 变量规则提示（只读，来自预置）
             html += '<button class="fh1-apply-btn" data-act="apply">\u25B6 应用（写入世界书）</button>';
             ;
@@ -4436,6 +4468,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (st.draft.varRulesFree) {
                 var r3 = await writeEntry(UID_VARRULES, st.draft.varRulesFree);
                 if (!r3.ok) { await rvAlert('世界观与生态已写入，但变量规则写入失败：' + r3.msg); return; }
+            }
+            var dispText = String(st.draft.varDisplay || '').trim();
+            if (dispText) {
+                var r4 = await writeEntry(UID_VARDISPLAY, dispText);
+                if (!r4.ok) { await rvAlert('变量信息展示写入 uid ' + UID_VARDISPLAY + ' 失败：' + r4.msg); return; }
             }
             st.source = st.draft.name;
             st.loadedOnce = true;
@@ -4662,7 +4699,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // #region 角色页纯逻辑（工具\测试角色状态页.js 按这两个标记切出来离线跑）
         // 字段表**以变量规则为准**：从 uid 28「角色变量规则」的「二级路径」行解析（键 ＋ 中文标签）。
-        // 每套世界观写自己的字段表（伊菈优待没有受精手环；大小之争有教派与 dio 大小），页面跟着变。
+        // 每套世界观写自己的字段表（常识扭曲＝原「伊菈优待」，没有受精手环；大小之争有教派与 dio 大小），页面跟着变。
         // CHAR_FALLBACK_FIELDS 只在读不到变量规则时兜底（＝少子化那套），改变量规则时这里也一起改。
         var CHAR_FALLBACK_FIELDS = [
             ['gender', '性别'],
