@@ -137,7 +137,7 @@ var REL_GROUP_OPEN = {};
 // 地区民俗风情的当前选中下标（按地区名记忆，仅会话内）
 var REGION_CUSTOM_INDEX = {};
 
-// 自定义角色条目（uid 125~149）内容缓存：条目名 -> 内容
+// 自定义角色条目（uid 75~149）内容缓存：条目名 -> 内容
 var CACHED_CHAR_ENTRIES = {};
 
 // 薪资确认按钮冷却表：名字 -> 到期时间戳(ms)，跨重渲染保持冷却
@@ -1684,14 +1684,14 @@ function extractCharEntryDesc(name, content) {
     return s;
 }
 
-// 读取自定义角色条目（uid 125~149）内容，按条目名建立映射
+// 读取自定义角色条目（uid 75~149）内容，按条目名建立映射
 async function fetchCharEntryContents() {
     var map = {};
     try {
         if (typeof getLorebookEntries !== 'function') return map;
         var entries = await getLorebookEntries('千叶的睡前小故事', { fields: ['uid', 'comment', 'content', 'order'] });
         (entries || []).forEach(function(e) {
-            if (e.order >= 125 && e.order <= 149 && e.comment) {
+            if (e.order >= 76 && e.order <= 148 && e.comment) {   // 人物区＝uid 76–148（75/149 是人物区标记）
                 map[String(e.comment).trim()] = e.content || '';
             }
         });
@@ -3929,13 +3929,13 @@ document.addEventListener('DOMContentLoaded', function() {
     /* =====================================================================
      * 本子世界：世界观调整（第 2 页）／特殊规则（第 3 页）／角色状态（第 4 页）
      * ---------------------------------------------------------------------
-     * 世界观调整：读世界书 uid 54（世界观正文）＋ uid 69（社会生态），
+     * 世界观调整：读世界书 uid 6（世界观正文）＋ uid 17（社会生态），
      *   既可整套切换（预置来自 window.WORLDVIEW_PRESETS），也可逐条改／删／加子项，
-     *   点「应用」写回 uid 54／69／28（变量规则，取预置里同名世界观的 varRulesFree）。
+     *   点「应用」写回 uid 6／69／28（变量规则，取预置里同名世界观的 varRulesFree）。
      * 特殊规则／角色状态：本轮只搭框架（渲染器已注册、变量已定），内容后续再做。
      * ===================================================================== */
     (function () {
-        var UID_WORLD = 54, UID_ECO = 69, UID_VARRULES = 28, UID_VARDISPLAY = 11;
+        var UID_WORLD = 6, UID_ECO = 17, UID_VARRULES = 216, UID_VARDISPLAY = 227;
         var LABELS = { '世界风格': '风格', '社会与法治': '社会与法治', '民俗风情': '民俗风情' };
         var st = { draft: null, source: '', editing: false, ecoSel: 0, err: '', busy: false, loadedOnce: false };
         var cachedHost = null;
@@ -4033,14 +4033,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (/^##\s+/.test(s)) { cur = { key: s.replace(/^##\s+/, '').trim(), items: [] }; d.segments.push(cur); return; }
                 if (!cur) return;
                 if (s === '---' || /^#/.test(s)) return;
-                var lb = /^(风格|社会与法治|民俗风情)：(.+)$/.exec(s);
-                if (lb) { d.name = lb[2].trim(); return; }
+                // 正文里不再写世界观名（名字只给我们自己看）：uid 6 是哪一套／哪一版，改由 identifyWorldview() 按内容比对
                 if (/^-\s?/.test(s)) cur.items.push(normItem(s));
             });
             var curG = null;
             (bgm ? bgm[1] : '').split('\n').forEach(function (line) {
                 var s = line.trim();
-                if (/^#\s+/.test(s)) { if (!d.name) d.name = s.replace(/^#\s+/, '').trim(); return; }
+                if (/^#\s+/.test(s)) return;   // 正文里不再写「# 世界观名」
                 if (/^##\s+/.test(s)) { curG = { title: s.replace(/^##\s+/, '').trim(), items: [] }; d.background.push(curG); return; }
                 if (!curG) return;
                 if (/^-\s?/.test(s)) curG.items.push(normItem(s));
@@ -4068,7 +4067,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var items = (s.items || []).filter(function (t) { return !isBlank(t); });
                 var lab = LABELS[s.key] || null;
                 if (items.length) {
-                    if (lab) { L.push('---'); L.push(lab + '：' + d.name); }
+                    if (lab) { L.push('---'); }   // 不再写「段落：世界观名」
                     items.forEach(function (t) { L.push(normItem(t)); });
                     if (lab) { L.push('---'); }
                 }
@@ -4082,7 +4081,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 bgLines.push('## ' + g.title);
                 items.forEach(function (t) { bgLines.push(normItem(t)); });
             });
-            if (bgLines.length) { L.push('# ' + d.name); bgLines.forEach(function (x) { L.push(x); }); }
+            if (bgLines.length) { bgLines.forEach(function (x) { L.push(x); }); }   // 不再写「# 世界观名」
             L.push('</背景设定>');
             return L.join('\n');
         }
@@ -4105,6 +4104,36 @@ document.addEventListener('DOMContentLoaded', function() {
             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
+        // 正文里不写世界观名（那些名字只给我们自己看），所以这里按**条目重合度**认出 uid 6 是哪一套／哪一版
+        //   评分＝召回×精确（hit/total × hit/myCount）：内容没改过时是 1.0；玩家改过一些也还能认出来。
+        function identifyWorldview(d) {
+            var key = function (t) { return String(t).replace(/^-\s*/, '').trim(); };
+            var mine = {}, myCount = 0;
+            (d.segments || []).forEach(function (s) { (s.items || []).forEach(function (t) { var k = key(t); if (k && !mine[k]) { mine[k] = 1; myCount++; } }); });
+            (d.background || []).forEach(function (g) { (g.items || []).forEach(function (t) { var k = key(t); if (k && !mine[k]) { mine[k] = 1; myCount++; } }); });
+            if (!myCount) return null;
+            var cands = [];
+            order().forEach(function (n) {
+                var p = presets()[n]; if (!p) return;
+                cands.push({ name: n, version: '', seg: p.segments, bg: p.background });
+                (p.versions || []).forEach(function (v) {
+                    var c = 0;
+                    (v.segments || []).forEach(function (s) { c += (s.items || []).length; });
+                    (v.background || []).forEach(function (g) { c += (g.items || []).length; });
+                    if (c > 0) cands.push({ name: n, version: v.name, seg: v.segments, bg: v.background });
+                });
+            });
+            var best = null;
+            cands.forEach(function (c) {
+                var hit = 0, total = 0;
+                (c.seg || []).forEach(function (s) { (s.items || []).forEach(function (t) { total++; if (mine[key(t)]) hit++; }); });
+                (c.bg || []).forEach(function (g) { (g.items || []).forEach(function (t) { total++; if (mine[key(t)]) hit++; }); });
+                var score = total ? (hit / total) * (hit / myCount) : 0;
+                if (!best || score > best.score) best = { name: c.name, version: c.version, score: score, hit: hit, total: total };
+            });
+            if (!best || best.hit < 3 || best.score < 0.25) return null;   // 条目太少或太不像就不认
+            return best;
+        }
         function loadFromPreset(name) {
             var p = presets()[name]; if (!p) return;
             st.draft = JSON.parse(JSON.stringify(p));
@@ -4118,17 +4147,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (wt) {
                     var d = parseWorldText(wt);
                     d.ecology = { blocks: parseEcoText(et, d.name) };
+                    // 正文里不再写世界观名，先按内容比对认出是哪一套／哪一版
+                    var id = identifyWorldview(d);
+                    if (id) { d.name = id.name; d.version = id.version; }
                     var p = presets()[d.name];
-                    // 变量规则：规则是按「版本」写的话，前端点「启用并继续」会把对应那版写进 uid 28；
-                    //   状态栏这里认不出当前是哪一版，所以 uid 28 里已经有内容就**不覆盖**（免得把玩家选的那版冲成共用版），
-                    //   只有 uid 28 还空着时才补上世界观级那份。
+                    var ver = null;
+                    if (p && id && id.version) { (p.versions || []).forEach(function (v) { if (v.name === id.version) ver = v; }); }
+                    // 变量规则：认出是哪一版就用那一版的；认不出且 uid 216 已经有内容就**不覆盖**
+                    //   （免得把玩家在前端选的那版冲成共用版）；uid 216 空着才补世界观级那份。
                     var curRules = '';
                     try { curRules = await readEntry(UID_VARRULES); } catch (e2) { curRules = ''; }
                     var hasVers = !!(p && p.versions && p.versions.length);
-                    d.varRulesFree = (hasVers && String(curRules || '').trim())
+                    var verRules = ver ? String(ver.varRulesFree || '') : '';
+                    d.varRulesFree = verRules || ((hasVers && String(curRules || '').trim())
                         ? String(curRules)
-                        : (p ? (p.varRulesFree || '') : '');
-                    d.varDisplay = p ? (p.varDisplay || '') : '';
+                        : (p ? (p.varRulesFree || '') : ''));
+                    d.varDisplay = (ver ? String(ver.varDisplay || '') : '') || (p ? (p.varDisplay || '') : '');
                     st.draft = d; st.source = d.name || ''; st.ecoSel = 0; st.editing = false;
                 } else {
                     st.draft = null; st.err = '世界书 uid ' + UID_WORLD + ' 还是空的——先在下面选一套世界观，点「应用」写进去。';
@@ -4476,7 +4510,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             st.source = st.draft.name;
             st.loadedOnce = true;
-            chSt.fields = null;   // 刚刚可能换了变量规则（uid 28）→ 角色页下次进来重读字段表
+            chSt.fields = null;   // 刚刚可能换了变量规则（uid 216）→ 角色页下次进来重读字段表
             await rvAlert('已写入世界书：\n世界观 uid ' + UID_WORLD + '（' + assembleWorld(st.draft).length + ' 字）' +
                 '\n社会生态 uid ' + UID_ECO +
                 (st.draft.varRulesFree ? '\n变量规则 uid ' + UID_VARRULES : ''));
@@ -4544,8 +4578,8 @@ document.addEventListener('DOMContentLoaded', function() {
         function rvAlert(msg) { return rvDialog(msg, { alert: true }); }
         function rvPrompt(msg, value) { return rvDialog(msg, { prompt: true, value: value || '' }); }
 
-        /* ---------- 规则指导 → 世界书 uid 5（<世界观内化协议细节指导> 包裹，块间用 --- 分隔） ---------- */
-        var UID_INNER = 5;
+        /* ---------- 规则指导 → 世界书 uid 154（<世界观内化协议细节指导> 包裹，块间用 --- 分隔） ---------- */
+        var UID_INNER = 154;
         var INNER_TAG = '世界观内化协议细节指导';
         async function writeInnerGuidance() {
             var R = rulesVar(), presets = rulePresets(), blocks = [];
@@ -4573,7 +4607,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var raw = await App.parsers.getVariableData();
                 App.state.parsedData = App.parsers.parseData(raw);
             } catch (e) { console.warn('刷新变量失败', e); }
-            await writeInnerGuidance();   // 规则一变动就把启用条目的指导覆写进 uid 5
+            await writeInnerGuidance();   // 规则一变动就把启用条目的指导覆写进 uid 154
             renderRules(container);
         }
 
@@ -4698,7 +4732,7 @@ document.addEventListener('DOMContentLoaded', function() {
          * ============================================================================ */
 
         // #region 角色页纯逻辑（工具\测试角色状态页.js 按这两个标记切出来离线跑）
-        // 字段表**以变量规则为准**：从 uid 28「角色变量规则」的「二级路径」行解析（键 ＋ 中文标签）。
+        // 字段表**以变量规则为准**：从 uid 216「角色变量规则」的「二级路径」行解析（键 ＋ 中文标签）。
         // 每套世界观写自己的字段表（常识扭曲＝原「伊菈优待」，没有受精手环；大小之争有教派与 dio 大小），页面跟着变。
         // CHAR_FALLBACK_FIELDS 只在读不到变量规则时兜底（＝少子化那套），改变量规则时这里也一起改。
         var CHAR_FALLBACK_FIELDS = [
@@ -4896,7 +4930,7 @@ document.addEventListener('DOMContentLoaded', function() {
         function charsFields() { return chSt.fields || mergeCharFields(null); }
         function charsFieldKeys() { return charsFields().map(function (f) { return f[0]; }); }
 
-        // 字段表从世界书 uid 28「角色变量规则」读 —— 每次进这一页读一次，之后点卡片不再重复读
+        // 字段表从世界书 uid 216「角色变量规则」读 —— 每次进这一页读一次，之后点卡片不再重复读
         async function loadCharFields() {
             var text = '';
             try { text = await readEntry(UID_VARRULES); } catch (e) { console.warn('读变量规则失败', e); }
@@ -5081,7 +5115,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         SECTION_RENDERERS.characters = function (data, container) {
-            // 字段表来自世界书 uid 28，而每套世界观的字段不一样 → 第一次进来读一次，之后缓存
+            // 字段表来自世界书 uid 216，而每套世界观的字段不一样 → 第一次进来读一次，之后缓存
             // （点开/收起卡片走 renderChars，不会再读世界书）
             bindChars(container);
             if (chSt.fields) { renderChars(container); return; }
