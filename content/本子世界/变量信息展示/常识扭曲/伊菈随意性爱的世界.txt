@@ -9,9 +9,16 @@
  * 由前端「启用并继续」按玩家选中的那一版写入 uid 227（文件名就是它对应的那一版）。
  * ===================================================================== */
 var _paths = [
-    'world.date', 'world.time', 'world.position',
-    'user.identity', 'user.body_state', 'user.inventory',
-    'user.surroundings', 'user.psychological_description',
+    'world.date',
+    'world.time',
+    'world.position',
+    'world.festival',
+    'user.identity',
+    'user.body_state',
+    'user.sign',
+    'user.inventory',
+    'user.surroundings',
+    'user.psychological_description',
     'characters'
 ];
 var _get = function (p) { try { return getvar('stat_data.' + p); } catch (e) { return undefined; } };
@@ -37,7 +44,7 @@ _%>
 · stat_data.characters：（未出现）→ 需要时用 <VariableInsert> 新建
 <%_ } _%>
 · stat_data.characters.{角色名}：每个角色一条，键＝角色名，字段固定为
-  gender / age / role / affiliation / relation / ring / pregnancy / state / location / present / favor / attitude / desc
+  gender / age / role / affiliation / relation / state / location / present / favor / attitude / needs / desc
   → 角色已存在就 <VariableEdit> 改它的字段；角色是新的就 <VariableInsert> 新建一条。
 
 【写法要求】
