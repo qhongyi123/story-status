@@ -1,5 +1,5 @@
 window.RULES_PRESETS = {
-    "generatedAt":  "2026-10-08 23:45:01",
+    "generatedAt":  "2026-10-09 23:50:13",
     "note":  "本文件由 工具/生成世界观预置.ps1 生成，请勿手改；改规则请改 状态栏/content/本子世界/特殊规则/*.txt 后重跑脚本。",
     "rules":  [
                   {
