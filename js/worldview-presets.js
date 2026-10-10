@@ -1,5 +1,5 @@
 window.WORLDVIEW_PRESETS = {
-    "generatedAt":  "2026-10-10 23:21:01",
+    "generatedAt":  "2026-10-10 23:29:57",
     "source":  "状态栏/content/本子世界/世界观",
     "note":  "本文件由 工具/生成世界观预置.ps1 生成，请勿手改；改内容请改 content 下的 txt 后重跑脚本。",
     "order":  [
