@@ -25,7 +25,7 @@ time: 清晨 | 上午 | 正午 | 下午 | 傍晚 | 入夜 | 深夜
 
 用户信息变量规则
 父路径: user
-二级路径: identity, gender, body_state, plug, inventory, surroundings, psychological_description
+二级路径: identity, gender, body_state, inventory, surroundings, psychological_description
 
 identity: 字符串，多重身份用 / 分隔；Example: 商场导购, 公司职员 / 高中学生, 餐厅服务员；check: 社会地位、职级或在特定人眼中的定位改变时
 
@@ -33,13 +33,11 @@ gender: 男性 | 伊芙 | 伊菈
 
 body_state: 字符串，多重状态用 , 分隔（记录生理、性唤起、衣着厚薄、伤病与环境影响等）；Example: 裙下空着, 刚行过礼还湿着, 裤子开了裆, 大腿内侧有尿痕, 精力充沛；check: 行礼、性行为、小便、运动或环境影响时
 
-inventory: JSON 对象 {"物品名": "描述/数量"}；Example: {"小穴贴": "2 张（洗过还能用）", "跳蛋": "1 个（塞着）", "肛塞": "1 个（尾巴款）", "工牌": "1 张"}；check: 获得、消耗、遗失或转交他人时
+inventory: JSON 对象 {"物品名": "描述/数量"}；Example: {"跳蛋": "1 个（塞着）", "肛塞": "1 个（尾巴款）", "工牌": "1 张"}；check: 获得、消耗、遗失或转交他人时
 
 surroundings: 字符串，关键词用英文逗号 , 分隔；Example: 午后的商场, 女厕门口的便器排班表, 走廊里互相夸两句的同事, 公园里坐着聊天的人；check: 互动对象或环境氛围改变时
 
 psychological_description: 用户第一人称内心独白
-
-plug (小穴贴): 未贴 | 已贴 | 已交 | 没在用（男性、伊菈平时用不上就写「没在用」；贴上后写清存着多少）；check: 出门前贴上、付款、如厕、交上去时
 
 ---
 

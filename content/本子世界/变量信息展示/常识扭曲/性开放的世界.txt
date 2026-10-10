@@ -14,7 +14,6 @@ var _paths = [
     'world.position',
     'user.identity',
     'user.body_state',
-    'user.plug',
     'user.inventory',
     'user.surroundings',
     'user.psychological_description',
